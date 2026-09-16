@@ -1,0 +1,65 @@
+# Python scratch scripts
+*.py
+*.pyc
+__pycache__/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+test-results/
+playwright-report/
+blob-report/
+
+# Next.js
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# PWA / Serwist (generated service worker output - keep source, ignore build artifacts if ejected)
+# public/sw.js
+# public/workbox-*.js
+
+# Env - NEVER commit secrets
+.env
+.env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# MCP local overrides (may contain secrets - use env vars in tracked configs)
+.agents/mcp_config.local.json
+.mcp.json.local
+opencode.local.json
+
+# Secrets / keys - NEVER commit
+*.pem
+*.key
+*.p12
+secrets.json
+
+# Misc / OS
+.DS_Store
+Thumbs.db
+
+# Debug / logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Vercel / deploy
+.vercel
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

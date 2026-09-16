@@ -1,0 +1,1 @@
+- Prefers clean commit messages without `Co-Authored-By` trailers or AI attribution lines. Confidence: 0.85
