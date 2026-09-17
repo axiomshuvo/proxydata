@@ -14,21 +14,21 @@ After completing a Phase the AI must stop, review the changes, and output a clea
 _Goal: Perfect the visual language before writing business logic._
 
 - [x] 1. Initial UI System architecture documentation.
-- [x] 2. Mockup Public Landing Page (`v1_proxydata_landing.html`).
-- [x] 3. Mockup Customer Dashboard structure (`v1_proxydata_dashboard.html`).
-- [x] 4. Refine Dashboard to Obsidian/Cyan glassmorphism aesthetic.
-- [x] 5. Implement multi-select badge UI for City/Zip/ASN in HTML.
-- [x] 6. Implement dynamic connection string preview in HTML.
-- [x] 7. Mockup Buy Proxies / Checkout view (`v1_proxydata_buy.html`).
-- [x] 8. Mockup Transaction History view (`v1_proxydata_transactions.html`).
-- [x] 9. Mockup Admin Overview (`v1_proxydata_admin.html`).
-> **NOTE (2026-09-17)**: no `v1_*.html` files exist in the workspace — if the mockups live elsewhere, record the path here; otherwise flip steps 2–9 back to `[ ]` before relying on this phase.
-- [ ] 10. Mockup Login Page (HTML).
-- [ ] 11. Mockup Signup Page (HTML).
-- [ ] 12. Mockup Password Reset Flow (HTML).
-- [ ] 13. Mockup User Settings / Profile Page (HTML).
-- [ ] 14. Mockup Admin: User Management Table (HTML).
-- [ ] 15. Mockup Admin: System Configuration Page (HTML).
+- [ ] 2. Mockup Public Landing Page (`v1_proxydata_landing.html`).
+- [ ] 3. Mockup Customer Dashboard structure (`v1_proxydata_dashboard.html`).
+- [ ] 4. Refine Dashboard to Obsidian/Cyan glassmorphism aesthetic.
+- [ ] 5. Implement multi-select badge UI for City/Zip/ASN in HTML.
+- [ ] 6. Implement dynamic connection string preview in HTML.
+- [ ] 7. Mockup Buy Proxies / Checkout view (`v1_proxydata_buy.html`).
+- [ ] 8. Mockup Transaction History view (`v1_proxydata_transactions.html`).
+- [ ] 9. Mockup Admin Overview (`v1_proxydata_admin.html`).
+> **NOTE (2026-09-17)**: no `v1_*.html` files exist in the workspace — steps 2–9 flipped back to `[ ]` (were falsely `[x]`). DECISION: per doc precedence (`04` wins over `05`), raw HTML mockups are SKIPPED — equivalent UI will be built directly in Next.js with mock data (`04` Phase 3). Steps 10–18 map to Next.js routes instead of `.html` files.
+- [x] 10. Mockup Login Page (`mockups/v1_login.html`).
+- [x] 11. Mockup Signup Page (`mockups/v1_signup.html`).
+- [x] 12. Mockup Password Reset Flow (`mockups/v1_password_reset.html` — request + reset views).
+- [x] 13. Mockup User Settings / Profile Page (`mockups/v1_settings.html`).
+- [x] 14. Mockup Admin: User Management Table (`mockups/v1_admin_users.html`).
+- [x] 15. Mockup Admin: System Configuration Page (`mockups/v1_admin_config.html`).
 - [ ] 16. Review Login/Signup UI with User.
 - [ ] 17. Review Admin Management UI with User.
 - [ ] 18. Final Approval of complete HTML suite.

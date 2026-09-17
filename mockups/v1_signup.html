@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="data:," />
+<title>Sign Up — ProxyData (mockup step 11)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: radial-gradient(1200px 600px at 50% -10%, #0e2a33 0%, #0a0e14 55%, #07090d 100%); }
+  .glass { background: rgba(255,255,255,.04); backdrop-filter: blur(18px); border: 1px solid rgba(34,211,238,.18); }
+  .glow { box-shadow: 0 0 40px rgba(34,211,238,.15); }
+  .field { background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.1); }
+  .field:focus { border-color: #22d3ee; outline: none; box-shadow: 0 0 0 2px rgba(34,211,238,.25); }
+</style>
+</head>
+<body class="min-h-screen text-slate-200 flex items-center justify-center p-4">
+<main class="glass glow rounded-2xl w-full max-w-md p-6 sm:p-8">
+  <div class="text-center mb-6">
+    <div class="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300 text-xl font-bold border border-cyan-400/30">P</div>
+    <h1 class="mt-3 text-2xl font-bold text-white">Create account</h1>
+    <p class="text-sm text-slate-400">Buy bandwidth in minutes</p>
+  </div>
+  <form class="space-y-4" onsubmit="return false">
+    <div>
+      <label class="text-sm text-slate-300" for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" class="field mt-1 w-full rounded-xl px-4 py-3 text-white placeholder-slate-500" />
+    </div>
+    <div>
+      <label class="text-sm text-slate-300" for="pw">Password</label>
+      <input id="pw" type="password" placeholder="Min. 8 characters" class="field mt-1 w-full rounded-xl px-4 py-3 text-white placeholder-slate-500" />
+    </div>
+    <div>
+      <label class="text-sm text-slate-300" for="aff">Affiliate code <span class="text-slate-500">(optional)</span></label>
+      <input id="aff" type="text" maxlength="8" placeholder="e.g. SAVE8" class="field mt-1 w-full rounded-xl px-4 py-3 text-white placeholder-slate-500 uppercase" />
+      <p class="mt-1 text-xs text-slate-500">First-touch only — applied at registration, self-use earns zero.</p>
+    </div>
+    <label class="flex items-start gap-2 text-sm text-slate-400">
+      <input type="checkbox" class="mt-1 accent-cyan-400" /> I agree to the Terms and Privacy Policy
+    </label>
+    <button class="w-full rounded-xl bg-cyan-500 py-3 font-semibold text-black hover:bg-cyan-400 active:scale-[.99]">Sign Up</button>
+  </form>
+  <p class="mt-5 text-center text-sm text-slate-400">Have an account? <a href="v1_login.html" class="text-cyan-300 hover:underline">Sign in</a></p>
+  <p class="mt-4 text-center text-xs text-slate-500">Route: <code>/user/sign-up</code> · mockup — no backend wired</p>
+</main>
+</body>
+</html>

@@ -14,6 +14,8 @@ You are an expert full-stack developer working on the **ProxyData** platform. Yo
 * **TypeScript `strict: true`**: No `any` without justification. Validate all external input with `zod`.
 * **Tailwind CSS v4 (CSS-first)**: Theme in CSS via `@theme` in `app/globals.css` (e.g. `@import "tailwindcss";`). **NEVER** create `tailwind.config.ts` / `tailwind.config.js`. No `@apply` for custom utilities unless v4-compatible.
 * **HeroUI v3 (`@heroui/react`)**: NEVER use `@nextui-org/react`. NEVER wrap app in `NextUIProvider` (v2 pattern — v3 needs no provider). Use compound pattern: `Card.Header`, `Card.Content`, etc. Check HeroUI MCP docs before guessing props.
+* **Icons (`@gravity-ui/icons` ONLY)**: NEVER install `lucide-react` or other icon sets without an ADR (locked aesthetic match for HeroUI v3).
+* **Route guard (`proxy.ts` ONLY)**: Next.js 16 guard lives in `proxy.ts`. NEVER create `src/middleware.ts` (legacy pattern).
 * **Framer Motion (`motion` / `framer-motion`)**: All UI animations. Respect `prefers-reduced-motion`.
 
 ## 2. Progressive Web App (PWA)
@@ -26,7 +28,10 @@ You are an expert full-stack developer working on the **ProxyData** platform. Yo
 * **MongoDB Native Driver (`mongodb`) + `zod` ONLY**. NEVER use Mongoose.
 * **Connection singleton**: One shared `MongoClient` (global cache in dev). MUST set `maxPoolSize: 10` to protect Free Tier.
 * **Storage limit (512MB)**: NO binary uploads to MongoDB (no avatars/receipts as Buffer). Use external URLs or generated initials / SVG placeholders.
+* **Auth (Better Auth ONLY)**: Cookie sessions (HTTP-only). NEVER install `jsonwebtoken` / `bcryptjs` / `jose` for app auth. No `src/lib/jwt.ts`, no custom password hashing. Suspend/deactivate revokes all Better Auth `sessions` rows + expires cookies (fail-closed).
 * **Auth / Validation**: Validate every API route body/query with `zod`. Return proper status codes (`400` validation, `401`/`403` auth, `404` missing).
+* **Data flow**: Reads via `swr` / React Query with TTLs (never per-render DB hits, never cache secrets). Writes via Server Actions with `zod` validation.
+* **Admin routes**: ALL admin routes live under `ADMIN_PATH` server env (never literal `/admin`, never `NEXT_PUBLIC_`). Every admin route/action checks `user.role === 'ROLE_ADMIN'`.
 
 ## 4. MCP & Anti-Hallucination Protocol (MANDATORY)
 
@@ -39,11 +44,17 @@ Available MCP servers (see `opencode.json` / `.agents/mcp_config.json`):
 
 RULE: If unsure of modern syntax for Next.js 16 / Tailwind v4 / HeroUI v3 / Serwist, **DO NOT GUESS**. Query Context7/HeroUI MCP first, then write code.
 
-## 5. Verification Before Done
+## 5. Hosting (Hostinger — persistent Node, NOT serverless)
+
+* PM2 persistent Node.js process. NEVER write Vercel edge functions.
+* `next.config.ts` MUST set `output: 'standalone'`. Standard `npm run build` / `npm start`.
+* Ephemeral filesystem between deploys: NEVER persist uploads/caches to disk. MongoDB for everything.
+
+## 6. Verification Before Done
 
 After any UI or API change:
 
 1. `npx tsc --noEmit`
 2. `npm run build` (must pass for Next 16)
 3. `npm run dev` + Playwright: snapshot, screenshot, no console errors
-4. Confirm no forbidden imports: `next-pwa`, `mongoose`, `@nextui-org/react`, `tailwind.config.*`
+4. Confirm no forbidden imports: `next-pwa`, `mongoose`, `@nextui-org/react`, `lucide-react`, `jsonwebtoken`, `bcryptjs`, `tailwind.config.*`, `src/middleware.ts`
