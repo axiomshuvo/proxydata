@@ -22,7 +22,7 @@ _Goal: Perfect the visual language before writing business logic._
 - [ ] 7. Mockup Buy Proxies / Checkout view (no checkout mockup exists).
 - [x] 8. Mockup Transaction History view (`mockups/v1_transactions.html` — exists; quality review deferred).
 - [x] 9. Mockup Admin Overview (`mockups/v1_admin_dashboard.html` — exists, loads clean; quality review deferred).
-> **NOTE (2026-09-17, revised)**: `79cf26d` replaced the original 6 mockups with a 9-file set (`landing`, `user_dashboard`, `transactions`, `user_proxy_config`, `admin_dashboard`, `contact` + rewritten `login`/`signup`/`admin_users`). Steps 2,3,8,9 now map to real files. Equivalent UI is additionally being built directly in Next.js (`src/app/dashboard`, `src/app/user/sign-in`) with mock data per `04` Phase 3.
+     > **NOTE (2026-09-17, revised)**: `79cf26d` replaced the original 6 mockups with a 9-file set (`landing`, `user_dashboard`, `transactions`, `user_proxy_config`, `admin_dashboard`, `contact` + rewritten `login`/`signup`/`admin_users`). Steps 2,3,8,9 now map to real files. Equivalent UI is additionally being built directly in Next.js (`src/app/dashboard`, `src/app/user/sign-in`) with mock data per `04` Phase 3.
 - [x] 10. Mockup Login Page (`mockups/v1_login.html` — rewritten in `79cf26d`; also live as `src/app/user/sign-in`).
 - [x] 11. Mockup Signup Page (`mockups/v1_signup.html` — rewritten in `79cf26d`).
 - [ ] 12. Mockup Password Reset Flow (HTML deleted in `79cf26d`; no Next.js route yet — `/user/forgot-password`, `/user/reset-password` pending).
@@ -54,21 +54,21 @@ _Goal: Initialize the monorepo and secure the environment._
 
 _Goal: Build the reusable UI primitives._
 
-- [ ] 31. Build `<Button />` (Primary, Secondary, Danger, Ghost variants).
+- [x] 31. Build `<Button />` (`src/components/ui/Button.tsx` — Primary, Secondary, Danger, Ghost).
 - [x] 32. Build `<GlassCard />` (Standard panel wrapper).
 - [x] 33. Build `<TextInput />` with error state handling.
 - [x] 34. Build `<PasswordInput />` with toggle visibility.
-- [ ] 35. Build `<SelectDropdown />` (Single select).
+- [x] 35. Build `<SelectDropdown />` (`src/components/ui/SelectDropdown.tsx` — single select).
 - [x] 36. Build `<MultiSelectCombobox />` (For State/City/Zip with search).
-- [ ] 37. Build `<ToggleSwitch />` (For Sticky IP / Protocols).
+- [x] 37. Build `<ToggleSwitch />` (`src/components/ui/ToggleSwitch.tsx` — Sticky IP / protocols).
 - [x] 38. Build `<StatusBadge />` (Active, Pending, Rejected, Suspended, Expired — locked vocabulary; never `Banned`).
-- [ ] 39. Build `<ProgressRing />` (For bandwidth visualization).
+- [x] 39. Build `<ProgressRing />` (`src/components/ui/ProgressRing.tsx` — bandwidth visualization).
 - [x] 40. Build `<CopyBox />` (For clicking to copy credentials/URLs).
-- [ ] 41. Build `<Navbar />` (Responsive, conditional auth states).
-- [ ] 42. Build `<Sidebar />` (Customer layout).
-- [ ] 43. Build `<AdminSidebar />` (Admin layout).
-- [ ] 44. Build `<ToastProvider />` for system notifications.
-- [ ] 45. Build `<Modal />` wrapper for popups (e.g., Ban User confirmation).
+- [x] 41. Build `<Navbar />` (`src/components/ui/Navbar.tsx` — responsive, conditional auth states).
+- [x] 42. Build `<Sidebar />` (`src/components/ui/Sidebar.tsx` — desktop sidebar + mobile bottom bar with More sheet).
+- [x] 43. Build `<AdminSidebar />` (`src/components/ui/AdminSidebar.tsx` — basePath-driven, strictly and ONLY `/axiomshuvo`).
+- [x] 44. Build `<ToastProvider />` (`src/components/ui/ToastProvider.tsx` — mount once + notify\* helpers).
+- [x] 45. Build `<Modal />` wrapper (`src/components/ui/Modal.tsx` — ConfirmDialog; e.g. suspend-user confirmation, never "ban" vocabulary).
 
 ## PHASE 4: Database Infrastructure (MongoDB Native + Zod — NO Mongoose)
 
@@ -102,10 +102,10 @@ _Goal: Define the strict data shapes. Every name here must match `02-DATABASE-AR
 - [x] 66. `coupons`: `code` (unique, case-insensitive collation), `FIXED_AMOUNT`/`PERCENTAGE` + `maxDiscountAmount` cap.
 - [x] 67. `coupons`: `bandwidthGb` scoping via `planId`/`userId` targeting (no `gbReward` pseudo-field).
 - [ ] 68. `coupons`: `usageLimit` + `$inc`-only `usageCount` with `usageCount < usageLimit` guard in the approval transaction.
-- [ ] 69. `coupons`/`offers`/`redeem_codes`: `validFrom`/`validTo` + `createdAt`; `redeem_codes.status` 7-state machine.
-- [ ] 70. `notifications`: `userId`, locked `type` enum (`02` §29), `title`, `message` (no secrets), `read`, 90-day TTL.
-  - [ ] 70a. `affiliate_profiles` / `affiliate_codes` (≤8 chars, case-insensitive unique) / `affiliate_referrals` (unique `referredUserId`, registration-only binding) / `affiliate_commissions` (unique `transactionId`, full snapshot) / `affiliate_payouts` (`receiptUrl`, `CUSTOM` + `customRange`).
-  - [ ] 70b. `provider_metadata` (upsert key `(providerId,poolType,countryCode)`, `syncedAt`) + `provider_sync_logs` + `provider_operation_logs` (unique `(transactionId,operationType)`, redacted payloads) + redacted `audit_logs`.
+- [x] 69. `coupons`/`offers`/`redeem_codes`: `validFrom`/`validTo` + `createdAt`; `redeem_codes.status` 7-state machine (`src/lib/db/schema.ts`).
+- [x] 70. `notifications`: `userId`, locked `type` enum (`02` §29), `title`, `message` (no secrets), `read`, 90-day TTL (`NotificationSchema`).
+  - [x] 70a. `affiliate_profiles` / `affiliate_codes` (≤8 chars, case-insensitive unique) / `affiliate_referrals` (unique `referredUserId`, registration-only binding) / `affiliate_commissions` (unique `transactionId`, full snapshot) / `affiliate_payouts` (`receiptUrl`, `CUSTOM` + `customRange`).
+  - [x] 70b. `provider_metadata` (upsert key `(providerId,poolType,countryCode)`, `syncedAt`) + `provider_sync_logs` + `provider_operation_logs` (unique `(transactionId,operationType)`, redacted payloads) + redacted `audit_logs`.
 
 ## PHASE 6: Authentication & Security Backend (Better Auth — NO custom JWT auth)
 
@@ -156,34 +156,34 @@ _Goal: Turn user selections into valid proxy credentials._
 - [ ] 103. Engine Logic: multi-value joins (`,` within a key, `;` across keys) per `03` §6; country-first validation before city/state/ZIP/ASN params.
 - [ ] 104. Engine Logic: sticky sessions via dedicated ports `10000+` (from `sticky_range`) and/or `sessid` pin (30-min semantics per live docs) — both server-rendered from env, never hardcoded in components.
 - [ ] 105. Engine Logic: Toggle `socks5://` vs `http://` scheme.
-- [ ] 106. Engine Logic: Construct final cURL output string dynamically.
+- [x] 106. Engine Logic: Construct final cURL output string dynamically.
 - [ ] 107. Engine Logic: Construct basic Username:Password output dynamically.
-- [ ] 108. UI Logic: Implement "Copy to Clipboard" functionality for credentials.
+- [x] 108. UI Logic: Implement "Copy to Clipboard" functionality for credentials.
 
 ## PHASE 9: Purchasing & Transactions Backend
 
 _Goal: Secure financial tracking and verification._
 
-- [ ] 109. Build API: `GET /api/plans` (dynamic catalog from `plans` collection; out-of-stock plans flagged via coefficient-adjusted stock check — never static tiers).
-- [ ] 110. Build API: `POST /api/transactions/create` (Initiate purchase).
-- [ ] 111. API Logic: Validate incoming plan ID (must be `ACTIVE`; client sends `{planId, couponCode?, affiliateCode?, targetFilters?}` — never amounts).
-- [ ] 112. API Logic: Create DB record with `status: PENDING` + frozen price snapshot (LOCKED-SPEC `01` §16.2 machine — never invented statuses).
-- [ ] 113. Build API: `POST /api/transactions/redeem` (Coupon claim).
-- [ ] 114. API Logic: Check Coupon `validFrom`/`validTo` + plan/user binding (advisory preview only).
-- [ ] 115. API Logic: Atomic claim `ACTIVE → PROCESSING` + `transactions(type=REDEEM)` insert in ONE Mongo transaction (exactly-once under concurrency).
-- [ ] 116. API Logic: allocate via adapter, confirm with `balance/get`, then advance `PROCESSING → PROVIDER_ALLOCATED → USED` (never mark `USED` before proof; failure reverts to `ACTIVE`).
-- [ ] 117. API Logic: `REDEEM` transactions NEVER insert commissions (worker branch + test).
-- [ ] 118. Build API: `GET /api/transactions` (Customer history with pagination).
+- [x] 109. Build API: `GET /api/plans` (dynamic catalog from `plans` collection; out-of-stock plans flagged via coefficient-adjusted stock check — never static tiers).
+- [x] 110. Build API: `POST /api/transactions/create` (Initiate purchase).
+- [x] 111. API Logic: Validate incoming plan ID (must be `ACTIVE`; client sends `{planId, couponCode?, affiliateCode?, targetFilters?}` — never amounts).
+- [x] 112. API Logic: Create DB record with `status: PENDING` + frozen price snapshot (LOCKED-SPEC `01` §16.2 machine — never invented statuses).
+- [x] 113. Build API: `POST /api/transactions/redeem` (Coupon claim).
+- [x] 114. API Logic: Check Coupon `validFrom`/`validTo` + plan/user binding (advisory preview only).
+- [x] 115. API Logic: Atomic claim `ACTIVE → PROCESSING` + `transactions(type=REDEEM)` insert in ONE Mongo transaction (exactly-once under concurrency).
+- [x] 116. API Logic: allocate via adapter, confirm with `balance/get`, then advance `PROCESSING → PROVIDER_ALLOCATED → USED` (never mark `USED` before proof; failure reverts to `ACTIVE`).
+- [x] 117. API Logic: `REDEEM` transactions NEVER insert commissions (worker branch + test).
+- [x] 118. Build API: `GET /api/transactions` (Customer history with pagination).
 
 ## PHASE 10: Admin Operations Backend
 
 _Goal: Build the control plane for the owner._
 
-- [ ] 119. Build API: `GET /api/admin/stats` (Aggregate totals for Admin dashboard; on-the-fly under 100k txns, else `daily_stats` per `02` §45).
-- [ ] 120. API Logic: Query MongoDB for total users, total pending Tx, total revenue.
-- [ ] 121. Build API: `GET /api/admin/transactions/pending`.
-- [ ] 122. Build API: `POST /api/admin/transactions/:id/approve`.
-- [ ] 123. API Logic (Approve): Ensure current status is `PENDING` (status-precondition write); re-validate price/plan/coupon/stock — ANY drift aborts to `PENDING` with re-confirm event.
+- [x] 119. Build API: `GET /api/admin/stats` (Aggregate totals for Admin dashboard; on-the-fly under 100k txns, else `daily_stats` per `02` §45).
+- [x] 120. API Logic: Query MongoDB for total users, total pending Tx, total revenue.
+- [x] 121. Build API: `GET /api/admin/transactions/pending`.
+- [x] 122. Build API: `POST /api/admin/transactions/:id/approve`.
+- [x] 123. API Logic (Approve): Ensure current status is `PENDING` (status-precondition write); re-validate price/plan/coupon/stock — ANY drift aborts to `PENDING` with re-confirm event.
 - [ ] 124. API Logic (Approve): flip `PENDING → APPROVED` + coupon atomic claim in ONE transaction, then enqueue the allocation WORKER (never call DataImpulse synchronously in the click handler): `APPROVED → ALLOCATING → PROVIDER_VERIFIED → ACTIVE` with idempotency key = transactionId.
 - [ ] 125. API Logic (Approve): commission decision (incl. explicit ৳0) inserted in the same txn as `PROVIDER_VERIFIED → ACTIVE`; `REDEEM`/`ADMIN_ADJUSTMENT` excluded.
 - [ ] 126. API Logic: Trigger in-app notification to user (+ email ONLY within the `01` §32 allowlist).
@@ -199,27 +199,27 @@ _Goal: Build the control plane for the owner._
 
 _Goal: Handle messaging without hitting the 100/day SMTP limit._
 
-- [ ] 134. Install `nodemailer`.
-- [ ] 135. Configure SMTP transport for Hostinger.
-- [ ] 136. Create `src/lib/notifications.ts` (DB Inbox creator).
-- [ ] 137. Create `src/lib/email.ts` (SMTP sender).
-- [ ] 138. Hook: Create DB notification on Purchase Initiated.
-- [ ] 139. Hook: Create DB notification on Purchase Approved.
-- [ ] 140. Hook: Create DB notification on Purchase Rejected.
-- [ ] 141. Build API: `POST /api/auth/forgot-password`.
-- [ ] 142. Rate Limit Check: Ensure user has not requested reset in last 24h.
-- [ ] 143. API Logic: Generate secure reset token, save to DB with expiry.
-- [ ] 144. Email Logic: Send Reset Password Email (allowlist item 1 — counts toward 100/day; 1 request/user/day).
-- [ ] 145. Build Cron: `GET /api/cron/daily-summary` (Secured by secret header; needs an external pinger on Hostinger — PM2 has no built-in cron runner).
-- [ ] 146. Cron Logic: Aggregate daily sales/users.
-- [ ] 147. Cron Logic: Send summary email to Admin (allowlist item 3 — 1/day).
-- [ ] 148. Build Cron/Hook: Low Data Warning (allowlist item 2 — threshold-triggered ONLY, debounced daily; in-app feed always, email only on threshold cross).
+- [x] 134. Install `nodemailer`.
+- [x] 135. Configure SMTP transport for Hostinger.
+- [x] 136. Create `src/lib/notifications.ts` (DB Inbox creator).
+- [x] 137. Create `src/lib/email.ts` (SMTP sender).
+- [x] 138. Hook: Create DB notification on Purchase Initiated.
+- [x] 139. Hook: Create DB notification on Purchase Approved.
+- [x] 140. Hook: Create DB notification on Purchase Rejected.
+- [x] 141. Build API: `POST /api/auth/forgot-password`.
+- [x] 142. Rate Limit Check: Ensure user has not requested reset in last 24h.
+- [x] 143. API Logic: Generate secure reset token, save to DB with expiry.
+- [x] 144. Email Logic: Send Reset Password Email (allowlist item 1 — counts toward 100/day; 1 request/user/day).
+- [x] 145. Build Cron: `GET /api/cron/daily-summary` (Secured by secret header; needs an external pinger on Hostinger — PM2 has no built-in cron runner).
+- [x] 146. Cron Logic: Aggregate daily sales/users.
+- [x] 147. Cron Logic: Send summary email to Admin (allowlist item 3 — 1/day).
+- [x] 148. Build Cron/Hook: Low Data Warning (allowlist item 2 — threshold-triggered ONLY, debounced daily; in-app feed always, email only on threshold cross).
 
 ## PHASE 12: Customer Frontend Integration (React Query)
 
 _Goal: Wire up the React UI to the API routes._
 
-- [ ] 149. Install `swr` or React Query for data fetching.
+- [x] 149. Install `swr` or React Query for data fetching.
 - [ ] 150. Build `/dashboard` page data hooks (Fetch Config, Fetch Balance).
 - [ ] 151. Wire up Generator UI to `PUT /api/proxy/config` with debouncing.
 - [ ] 152. Build `/plans` + `/checkout` page form logic (Select plan, enter bKash/Nagad ref) — locked routes are `/user/sign-in`, `/user/sign-up`, `/plans`, `/checkout` (never `/login`, `/register`, `/buy`).
@@ -233,32 +233,32 @@ _Goal: Wire up the React UI to the API routes._
 
 ## PHASE 13: Admin Frontend Integration
 
-_Goal: Wire up the Admin control panel. All admin routes live under `ADMIN_PATH` (server env — never literal `/admin`; see `01` §8.2)._
+_Goal: Wire up the Admin control panel. All admin routes live under `ADMIN_PATH` (server env — strictly and ONLY `/axiomshuvo`; see `01` §8.2)._
 
 - [ ] 160. Build `ADMIN_PATH` dashboard overview (Fetch stats).
 - [ ] 161. Implement Storage Warning progress bar based on DB size API.
-- [ ] 162. Build `ADMIN_PATH/approvals` queue data table (cost preview, dup-TrxID blocking, retry — per `04` §4.2).
+- [ ] 162. Build `axiomshuvo/approvals` queue data table (cost preview, dup-TrxID blocking, retry — per `04` §4.2).
 - [ ] 163. Wire up "Approve" button with confirmation modal and loading state (enqueues worker — never synchronous allocation).
 - [ ] 164. Wire up "Reject" button (mandatory reason).
-- [ ] 165. Build `ADMIN_PATH/users` management table.
+- [ ] 165. Build `axiomshuvo/users` management table.
 - [ ] 166. Wire up User Search functionality (email + `publicUserId`).
 - [ ] 167. Wire up "Suspend/Restore" + "Rotate Credentials" buttons (fail-closed sequences `01` §9.3; Danger confirmation modal).
-- [ ] 168. Build `ADMIN_PATH/coupons` creation form (promo coupons; affiliate codes are a separate flow).
+- [ ] 168. Build `axiomshuvo/coupons` creation form (promo coupons; affiliate codes are a separate flow).
 
 ## PHASE 14: Security Hardening & Edge Cases
 
 _Goal: Ensure system survives abuse._
 
-- [ ] 169. Audit: Check all `$inc` MongoDB operations for atomicity (coupon `usageCount` guard, `cumulativePurchasedBytes` — always with preconditions, inside transactions where ledger rows are co-written).
-- [ ] 170. Audit: Verify Better Auth session handling (DB rows + cookie expiry on suspend/deactivate; no custom JWTs to expire).
-- [ ] 171. Audit: Ensure API routes return 401/403 properly.
-- [ ] 172. Audit: Verify users cannot view other users' transactions (`where userId = req.user.id`).
-- [ ] 173. Install `helmet` or equivalent Next.js security headers.
-- [ ] 174. Set up strict CORS policy.
-- [ ] 175. Verify sparse index on `paymentReference` prevents duplicate TrxID submissions.
-- [ ] 176. Implement frontend throttling on Proxy Config saves (prevent API spam).
-- [ ] 177. Handle DataImpulse 500 errors gracefully without exposing stack traces.
-- [ ] 178. Handle Hostinger SMTP connection failures gracefully.
+- [x] 169. Audit: Check all `$inc` MongoDB operations for atomicity (coupon `usageCount` guard, `cumulativePurchasedBytes` — always with preconditions, inside transactions where ledger rows are co-written).
+- [x] 170. Audit: Verify Better Auth session handling (DB rows + cookie expiry on suspend/deactivate; no custom JWTs to expire).
+- [x] 171. Audit: Ensure API routes return 401/403 properly.
+- [x] 172. Audit: Verify users cannot view other users' transactions (`where userId = req.user.id`).
+- [x] 173. Install `helmet` or equivalent Next.js security headers.
+- [x] 174. Set up strict CORS policy.
+- [x] 175. Verify sparse index on `paymentReference` prevents duplicate TrxID submissions.
+- [x] 176. Implement frontend throttling on Proxy Config saves (prevent API spam).
+- [x] 177. Handle DataImpulse 500 errors gracefully without exposing stack traces.
+- [x] 178. Handle Hostinger SMTP connection failures gracefully.
 
 ## PHASE 15: Optimization & Cleanup
 
@@ -271,11 +271,11 @@ _Goal: Polish for production._
 - [ ] 183. Check mobile responsiveness of Dashboard multi-selects.
 - [ ] 184. Check mobile responsiveness of Admin data tables (horizontal scroll).
 - [ ] 185. Verify Dark Mode consistency across all states.
-- [ ] 186. Configure `@serwist/next` (LOCKED PWA engine — NOT `next-pwa`) with `NetworkOnly` for `/api/*`, dashboard, proxy-config, transactions, redeem, auth routes.
+- [x] 186. Configure `@serwist/next` (LOCKED PWA engine — NOT `next-pwa`) with `NetworkOnly` for `/api/*`, dashboard, proxy-config, transactions, redeem, auth routes.
 - [ ] 187. Generate `manifest.json` with app icons and theme colors.
 - [ ] 188. Build `<PWAInstallPrompt />` UI component (Mobile bottom-sheet or Top banner).
-- [ ] 189. Create custom 404 page.
-- [ ] 190. Create custom 500 error boundary.
+- [x] 189. Create custom 404 page.
+- [x] 190. Create custom 500 error boundary.
 
 ## PHASE 16: Hostinger Deployment Prep
 
@@ -286,7 +286,6 @@ _Goal: Prepare the codebase for the Hostinger Node.js environment._
 - [ ] 193. Update `next.config.js` for deployment (`output: 'standalone'`).
 - [ ] 194. Document environment variables required in Hostinger panel.
 - [ ] 195. Write deployment script/readme for user.
-
 
 ## PHASE 17: Production Launch Checks
 

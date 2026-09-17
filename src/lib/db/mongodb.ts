@@ -16,23 +16,38 @@ const options = {
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
+async function connectWithRetry(target: MongoClient, retries = 3): Promise<MongoClient> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await target.connect();
+    } catch (err) {
+      lastError = err;
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
+      }
+    }
+  }
+  throw lastError;
+}
+
 if (process.env.NODE_ENV === "development") {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement).
-  // This prevents exhausting the database connection limit.
   const globalWithMongo = global as typeof globalThis & {
+    _mongoClient?: MongoClient;
     _mongoClientPromise?: Promise<MongoClient>;
   };
 
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    globalWithMongo._mongoClientPromise = client.connect();
+  if (!globalWithMongo._mongoClient) {
+    globalWithMongo._mongoClient = new MongoClient(uri, options);
+    globalWithMongo._mongoClientPromise = connectWithRetry(globalWithMongo._mongoClient);
   }
-  clientPromise = globalWithMongo._mongoClientPromise;
+  client = globalWithMongo._mongoClient;
+  clientPromise = globalWithMongo._mongoClientPromise!;
 } else {
-  // In production mode, it's best to not use a global variable.
   client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+  clientPromise = connectWithRetry(client);
 }
 
+// Export BOTH the Promise (for async route handlers) and the sync client (for BetterAuth)
+export { client as mongoClient };
 export default clientPromise;

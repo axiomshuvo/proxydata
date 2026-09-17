@@ -305,7 +305,7 @@ Authentication is implemented via **Better Auth** using **secure cookie-based se
   - `/redeem`
   - `/affiliate` (gated by `CAPABILITY_AFFILIATE`)
 - Obscured Admin Route:
-  - The Owner/Admin area should not use an obvious generic `/admin/login` or `/admin` route. Instead, the administration panel shall be mapped via server-side configuration (e.g., `ADMIN_PATH=/ops-portal-x9z`). Do not expose this setting via client-prefixed environment variables (such as `NEXT_PUBLIC_`).
+  - The Owner/Admin area should not use an obvious generic `/admin/login` or `/admin` route. Instead, the administration panel shall be mapped via server-side configuration (e.g., `ADMIN_PATH=/axiomshuvo`). Do not expose this setting via client-prefixed environment variables (such as `NEXT_PUBLIC_`).
   - **Explicit Security Boundary Rule**: The hidden or custom route is **not a security boundary**. Hiding the path is solely a reconnaissance deterrent. Real authorization must be strictly enforced server-side. The Next.js 16 `proxy.ts`, server actions, and route handlers must enforce rigorous session inspection, verifying `user.role === 'ROLE_ADMIN'` regardless of the accessed URL.
 
 ### 8.3 User Identification & Collisions

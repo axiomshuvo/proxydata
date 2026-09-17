@@ -14,6 +14,7 @@ You are an expert full-stack developer working on the **ProxyData** platform. Yo
 * **TypeScript `strict: true`**: No `any` without justification. Validate all external input with `zod`.
 * **Tailwind CSS v4 (CSS-first)**: Theme in CSS via `@theme` in `app/globals.css` (e.g. `@import "tailwindcss";`). **NEVER** create `tailwind.config.ts` / `tailwind.config.js`. No `@apply` for custom utilities unless v4-compatible.
 * **HeroUI v3 (`@heroui/react`)**: NEVER use `@nextui-org/react`. NEVER wrap app in `NextUIProvider` (v2 pattern — v3 needs no provider). Use compound pattern: `Card.Header`, `Card.Content`, etc. Check HeroUI MCP docs before guessing props.
+* **Client boundary rule**: EVERY file in `src/components/ui/*` MUST start with `"use client"` — HeroUI v3 is client-only, and importing a primitive from a Server Component fails the build (`client-only` error). Server pages may import ui/* freely once the primitives carry the directive.
 * **Icons (`@gravity-ui/icons` ONLY)**: NEVER install `lucide-react` or other icon sets without an ADR (locked aesthetic match for HeroUI v3).
 * **Route guard (`proxy.ts` ONLY)**: Next.js 16 guard lives in `proxy.ts`. NEVER create `src/middleware.ts` (legacy pattern).
 * **Framer Motion (`motion` / `framer-motion`)**: All UI animations. Respect `prefers-reduced-motion`.

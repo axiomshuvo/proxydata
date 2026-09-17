@@ -1,66 +1,131 @@
 "use client";
-
-import { GlassCard } from "@/components/ui/GlassCard";
-import { PasswordInput } from "@/components/ui/PasswordInput";
-import { TextInput } from "@/components/ui/TextInput";
-import { Button } from "@heroui/react";
 import Link from "next/link";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { Button } from "@heroui/react";
+import { useState } from "react";
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/axiomshuvo"
+    });
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const { data, error } = await authClient.signIn.email({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message || "Invalid email or password.");
+        setIsLoading(false);
+        return;
+      }
+
+      router.push("/axiomshuvo");
+    } catch (err) {
+      setError("An unexpected error occurred.");
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <main className="min-h-screen text-slate-200 flex items-center justify-center p-4">
-      <GlassCard className="w-full max-w-md p-6 sm:p-8 rounded-2xl">
-        <div className="text-center mb-6">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300 text-xl font-bold border border-cyan-400/30">
-            P
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-zinc-950">
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-cyan-500/10 blur-[100px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-cyan-500/10 blur-[100px] pointer-events-none"></div>
+
+      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-700 relative z-10">
+        
+        <Link href="/" className="flex items-center justify-center gap-2 mb-8">
+          <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-400/20 flex items-center justify-center text-cyan-400 font-bold text-xl shadow-[0_0_15px_rgba(6,182,212,0.15)]">P</div>
+          <span className="font-bold text-2xl tracking-tight text-white">Proxy<span className="text-cyan-400">Data</span></span>
+        </Link>
+
+        <GlassCard className="!bg-zinc-900/80 !border-white/10 p-8 sm:p-10 rounded-[2rem] shadow-2xl relative overflow-hidden">
+          <div className="absolute -top-20 -left-20 w-40 h-40 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="text-center mb-8 relative z-10">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Welcome Back</h1>
+            <p className="text-sm text-zinc-400 mt-2">Sign in to your dashboard</p>
           </div>
-          <h1 className="mt-3 text-2xl font-bold text-white">Welcome back</h1>
-          <p className="text-sm text-slate-400">
-            Sign in to manage your proxies
+
+          <form className="space-y-4 relative z-10" onSubmit={handleSignIn}>
+
+            <Button onPress={handleGoogleSignIn} isDisabled={isLoading} className="w-full bg-white hover:bg-zinc-100 text-zinc-900 font-bold py-6 rounded-xl flex items-center justify-center gap-3 transition-all shadow-md">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20px" height="20px">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                <path fill="none" d="M0 0h48v48H0z"/>
+              </svg>
+              Sign in with Google
+            </Button>
+
+            <div className="flex items-center gap-4 py-2">
+              <div className="h-px bg-white/10 flex-1"></div>
+              <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider">or sign in with email</span>
+              <div className="h-px bg-white/10 flex-1"></div>
+            </div>
+
+            {error && <div className="text-red-400 text-sm font-semibold bg-red-500/10 border border-red-500/20 p-3 rounded-lg">{error}</div>}
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-400 mb-1.5 ml-1">Email Address</label>
+              <input 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-zinc-950/50 border border-white/10 text-white placeholder:text-zinc-600 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all shadow-inner" 
+                placeholder="you@example.com"
+                required 
+              />
+            </div>
+            
+            <div>
+              <div className="flex justify-between mb-1.5 px-1">
+                <label className="text-xs font-semibold text-zinc-400">Password</label>
+                <Link href="/user/forgot-password" className="text-xs text-cyan-400 hover:text-cyan-300 font-bold transition-colors">Forgot?</Link>
+              </div>
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-zinc-950/50 border border-white/10 text-white placeholder:text-zinc-600 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all shadow-inner" 
+                placeholder="Enter your password" 
+                required
+              />
+            </div>
+
+            <Button type="submit" isDisabled={isLoading} className="w-full py-6 mt-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 transition-all">
+              {isLoading ? "Signing in..." : "Sign in"}
+            </Button>
+          </form>
+
+          <p className="text-center text-xs text-zinc-500 mt-8 relative z-10 border-t border-white/5 pt-6">
+            Don't have an account?{" "}
+            <Link href="/user/sign-up" className="text-cyan-400 font-bold hover:text-cyan-300 transition-colors">
+              Sign up
+            </Link>
           </p>
-        </div>
-
-        <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-          <TextInput
-            label="Email"
-            placeholder="you@example.com"
-            type="email"
-            isRequired
-          />
-
-          <PasswordInput label="Password" placeholder="••••••••" isRequired />
-
-          {/* Hidden error message state to match mockup */}
-          <p className="hidden rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
-            Invalid email or password.
-          </p>
-
-          <Button
-            className="w-full rounded-xl bg-cyan-500 py-6 font-semibold text-black hover:bg-cyan-400"
-          >
-            Sign In
-          </Button>
-        </form>
-
-        <Button
-          variant="secondary"
-          className="mt-3 w-full rounded-xl border-white/10 bg-white/5 py-6 text-sm font-medium text-white hover:bg-white/10"
-        >
-          Continue with Google
-        </Button>
-
-        <div className="mt-5 flex items-center justify-between text-sm">
-          <Link
-            href="/user/password-reset"
-            className="text-cyan-300 hover:underline"
-          >
-            Forgot password?
-          </Link>
-          <Link href="/user/sign-up" className="text-slate-300 hover:underline">
-            Create account
-          </Link>
-        </div>
-      </GlassCard>
-    </main>
+        </GlassCard>
+      </div>
+    </div>
   );
 }

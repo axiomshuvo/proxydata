@@ -470,7 +470,7 @@ Singleton document.
 - `defaultCommissionPerGbBdt` (Number, default 10) — the global fallback commission rate
 - `minimumOwnerProfitBdt` (Number, default 15) — the owner profit floor for commission capping
 
-> **Security Note — ADMIN_PATH**: The obscured admin portal path (e.g., `/ops-portal-x9z`) is stored **exclusively** as a server-side environment variable (`ADMIN_PATH`). It is **never** stored in `system_settings` or any database collection. It must **never** be prefixed with `NEXT_PUBLIC_`. The Next.js 16 `proxy.ts` reads this value server-side to dynamically protect and route the admin area.
+> **Security Note — ADMIN_PATH**: The obscured admin portal path (e.g., `/axiomshuvo`) is stored **exclusively** as a server-side environment variable (`ADMIN_PATH`). It is **never** stored in `system_settings` or any database collection. It must **never** be prefixed with `NEXT_PUBLIC_`. The Next.js 16 `proxy.ts` reads this value server-side to dynamically protect and route the admin area.
 
 ## 32. Indexing Strategy
 

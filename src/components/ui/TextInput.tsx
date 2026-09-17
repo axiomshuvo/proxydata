@@ -1,3 +1,5 @@
+"use client";
+
 import { FieldError, Input, Label, TextField, type InputProps } from "@heroui/react";
 import type { ReactNode } from "react";
 

@@ -6,7 +6,7 @@
       "type": "remote",
       "url": "https://mcp.context7.com/mcp",
       "headers": {
-        "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+        "CONTEXT7_API_KEY": "ctx7sk-ca4733d1-1997-4a1b-8f3f-b32e7bbff514"
       },
       "enabled": true,
       "oauth": false

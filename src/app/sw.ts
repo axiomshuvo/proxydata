@@ -1,19 +1,26 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry } from "serwist";
-import { Serwist } from "serwist";
+import { Serwist, NetworkOnly } from "serwist";
 
-// Typed locally: the service-worker global is unavailable to tsc
-// (tsconfig lib has no WebWorker types), and Serwist only reads the manifest.
 declare const self: {
   __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
 };
+
+// Strict override: Never cache API, user, or admin routes (Security P0-2)
+const customCaching = [
+  {
+    matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/api/") || url.pathname.startsWith("/user/") || url.pathname.startsWith("/axiomshuvo/"),
+    handler: new NetworkOnly(),
+  },
+  ...defaultCache,
+];
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching: customCaching,
 });
 
 serwist.addEventListeners();

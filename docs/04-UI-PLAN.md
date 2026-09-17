@@ -53,7 +53,7 @@ This document outlines the phased strategy for building the ProxyData user inter
 
 ### 2.3 Admin Portal Layout
 
-- **Target Routes**: `ADMIN_PATH/*` (Derived from server configuration) (Obscured admin path for security)
+- **Target Routes**: `/axiomshuvo/*` (Derived from server configuration) (Obscured admin path for security)
 - **Structure**: High-density desktop-optimized dashboard.
 - **Components**: Collapsible sidebar, metrics summary header, wide data tables.
 
@@ -118,7 +118,7 @@ In this phase, we build the actual pages using hardcoded mock data to perfect th
 - **Referral Code Manager**: Input to generate new custom code (≤8 chars, throttled 3/day, max 5 active — server-enforced per PRD §12.2), list of active codes with "Copy" and "Disable" buttons (disabled codes shown struck-through, never reusable).
 - **History Table**: List of qualifying transactions and earned commissions.
 
-### 4.2 Admin Dashboard (`ADMIN_PATH`)
+### 4.2 Admin Dashboard (`/axiomshuvo`)
 
 - **Executive Overview**: HeroUI `Card` components showing total users, monthly revenue, total provider balance.
 - **User & Affiliate Tables**: HeroUI `Table` with robust search specifically targeting `email` and `publicUserId`. (Suspend/Restore, Rotate Credentials, View Ledger, Upgrade to Affiliate, Soft Delete, Hard Deprovision) mirroring the §01-9.3 locked sequences (destructive actions dual-confirmed).

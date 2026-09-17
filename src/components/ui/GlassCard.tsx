@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, type CardProps } from "@heroui/react";
 import { ReactNode } from "react";
 
