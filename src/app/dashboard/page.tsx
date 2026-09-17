@@ -3,7 +3,7 @@
 import { CopyBox } from "@/components/ui/CopyBox";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FileText, Globe, Shield, Video } from "@gravity-ui/icons";
-import { Button, Select, SelectItem } from "@heroui/react";
+import { Button, Label, ListBox, Select } from "@heroui/react";
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -38,28 +38,35 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="w-full sm:w-72 relative">
+            <Label className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              Active Plan / Provider
+            </Label>
             <Select
-              label="Active Plan / Provider"
-              labelPlacement="outside"
-              defaultSelectedKeys={["1"]}
-              variant="faded"
-              classNames={{
-                trigger:
-                  "bg-cyan-950/20 border-cyan-500/50 shadow-lg shadow-cyan-500/10",
-                value: "text-cyan-50 font-bold",
-                label:
-                  "text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1",
-              }}
+              variant="secondary"
+              placeholder="Select plan"
+              defaultSelectedKey="1"
+              aria-label="Active Plan / Provider"
             >
-              <SelectItem key="1" value="1">
-                Datacenter (DataImpulse) - 6.64 GB
-              </SelectItem>
-              <SelectItem key="2" value="2">
-                Residential (DataImpulse) - 12.0 GB
-              </SelectItem>
-              <SelectItem key="3" value="3">
-                Mobile (Provider B) - 2.5 GB
-              </SelectItem>
+              <Select.Trigger className="border-cyan-500/50 bg-cyan-950/20 shadow-lg shadow-cyan-500/10">
+                <Select.Value className="font-bold text-cyan-50" />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  <ListBox.Item id="1" textValue="Datacenter (DataImpulse) - 6.64 GB">
+                    Datacenter (DataImpulse) - 6.64 GB
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                  <ListBox.Item id="2" textValue="Residential (DataImpulse) - 12.0 GB">
+                    Residential (DataImpulse) - 12.0 GB
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                  <ListBox.Item id="3" textValue="Mobile (Provider B) - 2.5 GB">
+                    Mobile (Provider B) - 2.5 GB
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                </ListBox>
+              </Select.Popover>
             </Select>
           </div>
         </div>
@@ -123,7 +130,6 @@ export default function DashboardPage() {
               </div>
             </div>
             <Button
-              color="primary"
               className="w-full mt-6 shadow-lg shadow-cyan-500/20 font-bold"
             >
               Add GBs to this Plan

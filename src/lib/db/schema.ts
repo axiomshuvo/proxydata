@@ -60,7 +60,7 @@ export const ProxyConfigurationSchema = z.object({
   rotationInterval: z.number().int().min(0).max(120).optional(),
   stickyRange: z.number().int().optional(),
   anonymousFilter: z.boolean().default(false),
-  whitelistedIps: z.array(z.string().ip()).default([]),
+  whitelistedIps: z.array(z.union([z.ipv4(), z.ipv6()])).default([]),
   consentForSupportView: z.boolean().default(false),
   
   updatedAt: z.date(),

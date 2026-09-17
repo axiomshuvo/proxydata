@@ -22,7 +22,16 @@
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
+*.key
+*.p12
+secrets.json
+
+# python scratch scripts (agent tooling, never commit)
+*.py
+*.pyc
+__pycache__/
 
 # debug
 npm-debug.log*
@@ -33,9 +42,32 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# mcp local overrides (may contain secrets — tracked configs use env vars only)
+.agents/mcp_config.local.json
+.mcp.json.local
+opencode.local.json
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated service worker (Serwist rebuilds it; never hand-edit)
+public/sw.js
+public/sw.js.map
+
+# playwright mcp transient output (snapshots, screenshots, console logs)
+.playwright-mcp/
+
+# playwright test output
+test-results/
+playwright-report/
+
+# logs
+*.log
+
+# ide
+.vscode/
+.idea/

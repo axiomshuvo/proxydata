@@ -14,21 +14,21 @@ After completing a Phase the AI must stop, review the changes, and output a clea
 _Goal: Perfect the visual language before writing business logic._
 
 - [x] 1. Initial UI System architecture documentation.
-- [ ] 2. Mockup Public Landing Page (`v1_proxydata_landing.html`).
-- [ ] 3. Mockup Customer Dashboard structure (`v1_proxydata_dashboard.html`).
+- [x] 2. Mockup Public Landing Page (`mockups/v1_landing.html` — exists, loads clean; quality review deferred to steps 16–18).
+- [x] 3. Mockup Customer Dashboard structure (`mockups/v1_user_dashboard.html` — exists, loads clean; quality review deferred).
 - [ ] 4. Refine Dashboard to Obsidian/Cyan glassmorphism aesthetic.
 - [ ] 5. Implement multi-select badge UI for City/Zip/ASN in HTML.
 - [ ] 6. Implement dynamic connection string preview in HTML.
-- [ ] 7. Mockup Buy Proxies / Checkout view (`v1_proxydata_buy.html`).
-- [ ] 8. Mockup Transaction History view (`v1_proxydata_transactions.html`).
-- [ ] 9. Mockup Admin Overview (`v1_proxydata_admin.html`).
-> **NOTE (2026-09-17)**: no `v1_*.html` files exist in the workspace — steps 2–9 flipped back to `[ ]` (were falsely `[x]`). DECISION: per doc precedence (`04` wins over `05`), raw HTML mockups are SKIPPED — equivalent UI will be built directly in Next.js with mock data (`04` Phase 3). Steps 10–18 map to Next.js routes instead of `.html` files.
-- [x] 10. Mockup Login Page (`mockups/v1_login.html`).
-- [x] 11. Mockup Signup Page (`mockups/v1_signup.html`).
-- [x] 12. Mockup Password Reset Flow (`mockups/v1_password_reset.html` — request + reset views).
-- [x] 13. Mockup User Settings / Profile Page (`mockups/v1_settings.html`).
-- [x] 14. Mockup Admin: User Management Table (`mockups/v1_admin_users.html`).
-- [x] 15. Mockup Admin: System Configuration Page (`mockups/v1_admin_config.html`).
+- [ ] 7. Mockup Buy Proxies / Checkout view (no checkout mockup exists).
+- [x] 8. Mockup Transaction History view (`mockups/v1_transactions.html` — exists; quality review deferred).
+- [x] 9. Mockup Admin Overview (`mockups/v1_admin_dashboard.html` — exists, loads clean; quality review deferred).
+> **NOTE (2026-09-17, revised)**: `79cf26d` replaced the original 6 mockups with a 9-file set (`landing`, `user_dashboard`, `transactions`, `user_proxy_config`, `admin_dashboard`, `contact` + rewritten `login`/`signup`/`admin_users`). Steps 2,3,8,9 now map to real files. Equivalent UI is additionally being built directly in Next.js (`src/app/dashboard`, `src/app/user/sign-in`) with mock data per `04` Phase 3.
+- [x] 10. Mockup Login Page (`mockups/v1_login.html` — rewritten in `79cf26d`; also live as `src/app/user/sign-in`).
+- [x] 11. Mockup Signup Page (`mockups/v1_signup.html` — rewritten in `79cf26d`).
+- [ ] 12. Mockup Password Reset Flow (HTML deleted in `79cf26d`; no Next.js route yet — `/user/forgot-password`, `/user/reset-password` pending).
+- [ ] 13. Mockup User Settings / Profile Page (HTML deleted in `79cf26d`; `/profile` route pending).
+- [x] 14. Mockup Admin: User Management Table (`mockups/v1_admin_users.html` — rewritten in `79cf26d`).
+- [ ] 15. Mockup Admin: System Configuration Page (HTML deleted in `79cf26d`; admin config route pending).
 - [ ] 16. Review Login/Signup UI with User.
 - [ ] 17. Review Admin Management UI with User.
 - [ ] 18. Final Approval of complete HTML suite.
@@ -37,33 +37,33 @@ _Goal: Perfect the visual language before writing business logic._
 
 _Goal: Initialize the monorepo and secure the environment._
 
-- [ ] 19. Initialize Next.js 16 App Router workspace.
+- [x] 19. Initialize Next.js 16 App Router workspace.
 - [ ] 20. Strip default Next.js boilerplate css and layout.
-- [ ] 21. Install Tailwind CSS v4 (CSS-first `@theme` in `app/globals.css` — NO `tailwind.config.ts`, which does not exist in v4).
-- [ ] 22. Define custom color palette (Obsidian, Cyan, Amber, Emerald) as `@theme` tokens in CSS, mapped from the `04` §1.2 brand tokens (Primary/Secondary/Success/Warning/Danger) — one token system, not two.
-- [ ] 23. Install HeroUI v3 (`@heroui/react` ONLY — NOT `@nextui-org/*`, NO Provider wrapper; v3 components work unwrapped).
-- [ ] 24. Install Framer Motion for UI animations (light use only — modal/drawer transitions; see `00` §1).
-- [ ] 25. Icons are `@gravity-ui/icons` (LOCKED aesthetic match — do NOT install Lucide).
-- [ ] 26. Setup `src/lib/env.ts` using Zod for strict ENV validation.
-- [ ] 27. Define `DATAIMPULSE_API_LOGIN` and `DATAIMPULSE_API_PASSWORD` in env vars.
-- [ ] 28. Define `MONGODB_URI` in env vars (no `JWT_SECRET` — sessions are Better Auth cookie sessions, not custom JWTs).
-- [ ] 29. Setup custom absolute import paths (`@/*`).
-- [ ] 30. Create global `layout.tsx` WITHOUT any UI Provider wrapper (HeroUI v3 needs none). Dark Mode default per design; do not force-remove user preference hooks reserved for later.
+- [x] 21. Install Tailwind CSS v4 (CSS-first `@theme` in `app/globals.css` — NO `tailwind.config.ts`, which does not exist in v4).
+- [x] 22. Define custom color palette (Obsidian, Cyan, Amber, Emerald) as `@theme` tokens in CSS, mapped from the `04` §1.2 brand tokens (Primary/Secondary/Success/Warning/Danger) — one token system, not two.
+- [x] 23. Install HeroUI v3 (`@heroui/react` ONLY — NOT `@nextui-org/*`, NO Provider wrapper; v3 components work unwrapped).
+- [x] 24. Install Framer Motion for UI animations (light use only — modal/drawer transitions; see `00` §1).
+- [x] 25. Icons are `@gravity-ui/icons` (LOCKED aesthetic match — do NOT install Lucide).
+- [x] 26. Setup `src/lib/env.ts` using Zod for strict ENV validation.
+- [x] 27. Define `DATAIMPULSE_API_LOGIN` and `DATAIMPULSE_API_PASSWORD` in env vars.
+- [x] 28. Define `MONGODB_URI` in env vars (no `JWT_SECRET` — sessions are Better Auth cookie sessions, not custom JWTs).
+- [x] 29. Setup custom absolute import paths (`@/*`).
+- [x] 30. Create global `layout.tsx` WITHOUT any UI Provider wrapper (HeroUI v3 needs none). Dark Mode default per design; do not force-remove user preference hooks reserved for later.
 
 ## PHASE 3: Atomic React Components (Design System)
 
 _Goal: Build the reusable UI primitives._
 
 - [ ] 31. Build `<Button />` (Primary, Secondary, Danger, Ghost variants).
-- [ ] 32. Build `<GlassCard />` (Standard panel wrapper).
-- [ ] 33. Build `<TextInput />` with error state handling.
-- [ ] 34. Build `<PasswordInput />` with toggle visibility.
+- [x] 32. Build `<GlassCard />` (Standard panel wrapper).
+- [x] 33. Build `<TextInput />` with error state handling.
+- [x] 34. Build `<PasswordInput />` with toggle visibility.
 - [ ] 35. Build `<SelectDropdown />` (Single select).
-- [ ] 36. Build `<MultiSelectCombobox />` (For State/City/Zip with search).
+- [x] 36. Build `<MultiSelectCombobox />` (For State/City/Zip with search).
 - [ ] 37. Build `<ToggleSwitch />` (For Sticky IP / Protocols).
-- [ ] 38. Build `<StatusBadge />` (Active, Pending, Rejected, Suspended, Expired — locked vocabulary; never `Banned`).
+- [x] 38. Build `<StatusBadge />` (Active, Pending, Rejected, Suspended, Expired — locked vocabulary; never `Banned`).
 - [ ] 39. Build `<ProgressRing />` (For bandwidth visualization).
-- [ ] 40. Build `<CopyBox />` (For clicking to copy credentials/URLs).
+- [x] 40. Build `<CopyBox />` (For clicking to copy credentials/URLs).
 - [ ] 41. Build `<Navbar />` (Responsive, conditional auth states).
 - [ ] 42. Build `<Sidebar />` (Customer layout).
 - [ ] 43. Build `<AdminSidebar />` (Admin layout).
@@ -96,7 +96,7 @@ _Goal: Define the strict data shapes. Every name here must match `02-DATABASE-AR
 - [x] 60. `transactions`: `paymentReference` (sparse unique) + `senderNumber` + `timestamps{createdAt,approvedAt,activatedAt,expiredAt}`.
 - [ ] 61. Index pass: unique `(userId,providerId,proxyType)`, `(couponId,transactionId)`, `(transactionId,operationType)`, `(transactionId)` on commissions, `(referredUserId)` on referrals, upsert key on metadata (per `02` §32).
 - [x] 62. `proxy_configurations`: 1:1 with `proxy_accounts` (`proxyAccountId` unique) — mode/mode-ports, country + 2x filters, exclude-ASN, threads/rotation/anonymous, `whitelistedIps` (move semantics), `consentForSupportView`.
-- [x] 63. Config targeting fields follow `03` §6 grammar inputs (country-first rule); the wire suffix itself is built ONLY by adapter `buildTargetingSuffix()`.
+- [ ] 63. Config targeting fields follow `03` §6 grammar inputs (country-first rule); the wire suffix itself is built ONLY by adapter `buildTargetingSuffix()` — NOT DONE: `src/lib/dataimpulse/` adapter is Phase 7 work, schema fields only exist so far.
 - [x] 64. `protocol` (`http` | `socks5`, subset of live `supported-protocols/get`) + `mode` (`rotating` | `sticky`).
 - [x] 65. `rotationInterval` + `anonymousFilter` passthrough + `stickyRange` mirror.
 - [x] 66. `coupons`: `code` (unique, case-insensitive collation), `FIXED_AMOUNT`/`PERCENTAGE` + `maxDiscountAmount` cap.

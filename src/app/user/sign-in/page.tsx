@@ -36,7 +36,6 @@ export default function SignInPage() {
           </p>
 
           <Button
-            color="primary"
             className="w-full rounded-xl bg-cyan-500 py-6 font-semibold text-black hover:bg-cyan-400"
           >
             Sign In
@@ -44,7 +43,7 @@ export default function SignInPage() {
         </form>
 
         <Button
-          variant="bordered"
+          variant="secondary"
           className="mt-3 w-full rounded-xl border-white/10 bg-white/5 py-6 text-sm font-medium text-white hover:bg-white/10"
         >
           Continue with Google

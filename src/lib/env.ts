@@ -33,8 +33,12 @@ const envSchema = z.object({
     .string()
     .email("ADMIN_RECEIVER_EMAIL must be a valid email"),
 
-  // External APIs
-  DATAIMPULSE_API_KEY: z.string().optional(),
+  // External APIs (DataImpulse reseller auth = dashboard login + password,
+  // POST formdata per docs/03 §1 — never a single API key)
+  DATAIMPULSE_API_LOGIN: z.string().min(1, "DATAIMPULSE_API_LOGIN is required"),
+  DATAIMPULSE_API_PASSWORD: z
+    .string()
+    .min(1, "DATAIMPULSE_API_PASSWORD is required"),
 });
 
 const _env = envSchema.safeParse(process.env);

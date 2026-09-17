@@ -10,12 +10,14 @@ interface TextInputProps extends InputProps {
   label?: ReactNode;
   errorMessage?: ReactNode;
   name?: string;
+  isRequired?: boolean;
 }
 
-export function TextInput({ label, errorMessage, ...props }: TextInputProps) {
+export function TextInput({ label, errorMessage, isRequired, ...props }: TextInputProps) {
   return (
     <TextField
       isInvalid={!!errorMessage}
+      isRequired={isRequired}
       name={props.name}
       variant="secondary"
       className="w-full"
@@ -23,6 +25,7 @@ export function TextInput({ label, errorMessage, ...props }: TextInputProps) {
       {label && <Label className="font-medium text-zinc-400">{label}</Label>}
       <Input
         variant="secondary"
+        required={isRequired}
         className="border-zinc-800 bg-zinc-900/50 text-zinc-100 placeholder:text-zinc-500"
         {...props}
       />

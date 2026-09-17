@@ -19,15 +19,17 @@ interface PasswordInputProps extends InputProps {
   label?: ReactNode;
   errorMessage?: ReactNode;
   name?: string;
+  isRequired?: boolean;
 }
 
-export function PasswordInput({ label, errorMessage, ...props }: PasswordInputProps) {
+export function PasswordInput({ label, errorMessage, isRequired, ...props }: PasswordInputProps) {
   const [isVisible, setIsVisible] = useState(false);
   const toggleVisibility = () => setIsVisible(!isVisible);
 
   return (
     <TextField
       isInvalid={!!errorMessage}
+      isRequired={isRequired}
       name={props.name}
       variant="secondary"
       className="w-full"
@@ -36,6 +38,7 @@ export function PasswordInput({ label, errorMessage, ...props }: PasswordInputPr
       <InputGroup className="border-zinc-800 bg-zinc-900/50">
         <InputGroup.Input
           type={isVisible ? "text" : "password"}
+          required={isRequired}
           className="text-zinc-100 placeholder:text-zinc-500"
           {...props}
         />
