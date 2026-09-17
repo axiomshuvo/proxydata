@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Proxy Configurator - ProxyData</title>
+    <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+      :root {
+        --bg-obsidian: #09090b;
+        --accent-cyan: #06b6d4;
+      }
+      body {
+        background-color: var(--bg-obsidian);
+        color: #f4f4f5;
+        font-family: "Inter", sans-serif;
+      }
+      .glass-panel {
+        background: rgba(24, 24, 27, 0.6);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .custom-select,
+      .custom-input {
+        background: rgba(9, 9, 11, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+        width: 100%;
+        transition: border-color 0.2s;
+      }
+      .custom-select:focus,
+      .custom-input:focus {
+        border-color: #06b6d4;
+      }
+      .radio-custom {
+        accent-color: #06b6d4;
+        width: 16px;
+        height: 16px;
+        margin-top: 2px;
+      }
+      .field-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #a1a1aa;
+        margin-bottom: 6px;
+      }
+    </style>
+  </head>
+  <body class="antialiased min-h-screen flex flex-col p-4 sm:p-6 lg:p-10">
+    <div class="max-w-5xl w-full mx-auto">
+      <div class="mb-6 flex items-center gap-4">
+        <a
+          href="v1_user_dashboard.html"
+          class="p-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors text-zinc-300"
+        >
+          ← Back
+        </a>
+        <div>
+          <h1 class="text-2xl font-bold text-white tracking-tight">
+            Proxy Configuration
+          </h1>
+          <p class="text-sm text-zinc-400 mt-1">
+            Configure targeting and generate your DataImpulse proxy list.
+          </p>
+        </div>
+      </div>
+
+      <div class="glass-panel rounded-2xl p-6 sm:p-8 shadow-xl">
+        <form onsubmit="return false;">
+          <!-- Targeting Toggle -->
+          <div
+            class="flex items-center gap-6 mb-8 border-b border-white/10 pb-6"
+          >
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="targeting_type" class="radio-custom" />
+              <span class="text-sm font-medium text-zinc-300"
+                >Default Targeting</span
+              >
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="targeting_type"
+                class="radio-custom"
+                checked
+              />
+              <span class="text-sm font-medium text-cyan-400"
+                >Target Filters</span
+              >
+            </label>
+            <div class="ml-auto flex gap-2">
+              <button
+                class="p-1.5 bg-white/5 border border-white/10 rounded hover:bg-white/10 text-zinc-400"
+                title="Sort A-Z"
+              >
+                ↓ A
+              </button>
+              <button
+                class="p-1.5 bg-white/5 border border-white/10 rounded hover:bg-white/10 text-zinc-400"
+                title="Sort 9-1"
+              >
+                ↓ 9
+              </button>
+            </div>
+          </div>
+
+          <!-- Geo Targeting Fields -->
+          <div class="space-y-6 mb-8">
+            <div>
+              <label class="field-label">Country</label>
+              <select class="custom-select">
+                <option>Select Country</option>
+              </select>
+            </div>
+
+            <!-- Multiplier Warning -->
+            <div
+              class="bg-yellow-500/10 border border-yellow-500/30 text-yellow-500/90 text-sm px-4 py-3 rounded-lg flex items-start gap-3"
+            >
+              <svg
+                class="w-5 h-5 flex-shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+              <p>
+                The usage traffic with these parameters will be counted at a
+                coefficient of x2
+              </p>
+            </div>
+
+            <div>
+              <label class="field-label">State</label>
+              <select class="custom-select">
+                <option>All states</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">City</label>
+              <select class="custom-select">
+                <option>All cities</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">Zip code</label>
+              <select class="custom-select">
+                <option>All zipcodes</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">ASN</label>
+              <select class="custom-select">
+                <option>All ASN`s</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Advanced Options -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+              <label class="field-label flex items-center gap-1"
+                >Rotation interval
+                <span
+                  class="w-3 h-3 rounded-full bg-zinc-700 text-[8px] flex items-center justify-center text-zinc-300"
+                  >?</span
+                ></label
+              >
+              <input
+                type="text"
+                class="custom-input"
+                placeholder="type value from 0 to 120"
+              />
+            </div>
+            <div>
+              <label class="field-label flex items-center gap-1"
+                >Exclude ASN
+                <span
+                  class="w-3 h-3 rounded-full bg-zinc-700 text-[8px] flex items-center justify-center text-zinc-300"
+                  >?</span
+                ></label
+              >
+              <input
+                type="text"
+                class="custom-input"
+                placeholder="AS Numbers"
+              />
+            </div>
+          </div>
+
+          <!-- Save/Clear Controls -->
+          <div
+            class="flex justify-end gap-4 border-b border-white/10 pb-8 mb-8"
+          >
+            <button
+              class="px-4 py-2 bg-transparent hover:bg-white/5 border border-white/10 text-zinc-300 text-sm font-medium rounded-lg transition-colors"
+            >
+              Clear configuration
+            </button>
+            <button
+              class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-cyan-500/20 transition-colors"
+            >
+              Save configuration
+            </button>
+          </div>
+
+          <!-- Protocol and Hostname -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div>
+              <label class="field-label">Hostname</label>
+              <select class="custom-select">
+                <option>DNS hostname</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">Type</label>
+              <div class="space-y-2 mt-2">
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-sm text-zinc-300"
+                  ><input
+                    type="radio"
+                    name="proxy_type"
+                    class="radio-custom"
+                    checked
+                  />
+                  Rotating</label
+                >
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-sm text-zinc-500"
+                  ><input type="radio" name="proxy_type" class="radio-custom" />
+                  Sticky</label
+                >
+              </div>
+            </div>
+            <div>
+              <label class="field-label">Protocol</label>
+              <div class="space-y-2 mt-2">
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-sm text-zinc-300"
+                  ><input
+                    type="radio"
+                    name="protocol"
+                    class="radio-custom"
+                    checked
+                  />
+                  HTTP/HTTPS</label
+                >
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-sm text-zinc-500"
+                  ><input type="radio" name="protocol" class="radio-custom" />
+                  SOCKS5</label
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Basic URL Example -->
+          <div class="mb-8">
+            <h3 class="text-lg font-semibold text-white mb-3">
+              Basic URL example
+            </h3>
+            <div
+              class="bg-black/60 border border-white/10 rounded-lg p-4 flex items-center justify-between"
+            >
+              <code
+                class="text-xs text-zinc-400 font-mono overflow-x-auto whitespace-nowrap"
+                >curl -x
+                <span class="text-green-400"
+                  >"http://3d1679d0e86cd4e30374:40c8680828f18ac8@gw.dataimpulse.com:823"</span
+                >
+                https://api.ipify.org/</code
+              >
+              <button
+                class="ml-4 p-2 hover:bg-white/10 rounded text-zinc-500 hover:text-white transition-colors"
+                title="Copy code"
+              >
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                  <path
+                    d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Output Generator -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2">
+              <label class="field-label text-sm text-white mb-3"
+                >Proxy List</label
+              >
+              <textarea
+                class="custom-input font-mono text-xs text-zinc-300 h-32 leading-relaxed resize-none"
+                readonly
+              >
+3d1679d0e86cd4e30374:40c8680828f18ac8@gw.dataimpulse.com:823</textarea
+              >
+              <div class="flex gap-4 mt-4">
+                <button
+                  class="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg flex items-center gap-2"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                    <path
+                      d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+                    />
+                  </svg>
+                  Copy
+                </button>
+                <button
+                  class="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg flex items-center gap-2"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                  Download
+                </button>
+              </div>
+            </div>
+            <div class="lg:col-span-1 space-y-6">
+              <div>
+                <label class="field-label text-sm text-white mb-3"
+                  >Quantity</label
+                >
+                <input type="number" class="custom-input" value="1" />
+              </div>
+              <div>
+                <label class="field-label text-sm text-white mb-3"
+                  >Format</label
+                >
+                <select class="custom-select">
+                  <option>login:password@hostname:port</option>
+                  <option>hostname:port:login:password</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-import { Card, CardBody, CardHeader, type CardProps } from "@heroui/react";
+import { Card, type CardProps } from "@heroui/react";
 import { ReactNode } from "react";
 
 interface GlassCardProps extends CardProps {
@@ -14,15 +14,15 @@ export function GlassCard({
 }: GlassCardProps) {
   return (
     <Card
-      className={`bg-zinc-900/40 backdrop-blur-md border border-zinc-800 shadow-xl ${className || ""}`}
+      className={`bg-zinc-900/60 backdrop-blur-[12px] border border-white/10 shadow-xl ${className || ""}`}
       {...props}
     >
       {title && (
-        <CardHeader className="px-6 pt-6 pb-2">
+        <Card.Header className="px-6 pt-6 pb-2">
           <div className="text-lg font-semibold text-zinc-100">{title}</div>
-        </CardHeader>
+        </Card.Header>
       )}
-      <CardBody className="px-6 pb-6 pt-2">{children}</CardBody>
+      <Card.Content className="px-6 pb-6 pt-2">{children}</Card.Content>
     </Card>
   );
 }

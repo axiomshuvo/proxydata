@@ -1,71 +1,186 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" class="dark">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="icon" href="data:," />
-<title>Admin Users — ProxyData (mockup step 14)</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-  body { background: radial-gradient(1200px 600px at 50% -10%, #0e2a33 0%, #0a0e14 55%, #07090d 100%); }
-  .glass { background: rgba(255,255,255,.04); backdrop-filter: blur(18px); border: 1px solid rgba(34,211,238,.18); }
-  .field { background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.1); }
-  .field:focus { border-color: #22d3ee; outline: none; }
-  .badge { font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 9999px; }
-</style>
-</head>
-<body class="min-h-screen text-slate-200 p-4">
-<main class="mx-auto w-full max-w-5xl pb-10">
-  <header class="pt-4">
-    <p class="text-xs font-semibold uppercase tracking-widest text-cyan-300">Admin · obscured path</p>
-    <h1 class="text-2xl font-bold text-white">User management</h1>
-  </header>
-  <div class="glass mt-4 rounded-2xl p-4">
-    <input placeholder="Search by email or publicUserId (e.g. PX-…)" class="field w-full rounded-xl px-4 py-3 text-white placeholder-slate-500" />
-  </div>
-  <div class="glass mt-4 overflow-x-auto rounded-2xl">
-    <table class="w-full min-w-[760px] text-left text-sm">
-      <thead class="text-xs uppercase text-slate-500">
-        <tr class="border-b border-white/10">
-          <th class="px-4 py-3">Public ID</th><th class="px-4 py-3">Email</th><th class="px-4 py-3">Role</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Balance</th><th class="px-4 py-3">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr class="border-b border-white/5">
-          <td class="px-4 py-3 font-mono text-cyan-300">PX-K7Q2M9</td><td class="px-4 py-3">tanvir@example.com</td>
-          <td class="px-4 py-3">USER</td>
-          <td class="px-4 py-3"><span class="badge bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">ACTIVE</span></td>
-          <td class="px-4 py-3">12.5 GB</td>
-          <td class="px-4 py-3"><div class="flex gap-2"><button onclick="document.getElementById('modal').classList.remove('hidden')" class="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-300">Suspend</button><button class="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs">Rotate creds</button><button class="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs">Ledger</button></div></td>
-        </tr>
-        <tr class="border-b border-white/5">
-          <td class="px-4 py-3 font-mono text-cyan-300">PX-9XD4A1</td><td class="px-4 py-3">aria@example.com</td>
-          <td class="px-4 py-3">USER + AFFILIATE</td>
-          <td class="px-4 py-3"><span class="badge bg-amber-500/15 text-amber-300 border border-amber-400/30">SUSPENDED</span></td>
-          <td class="px-4 py-3">0 GB</td>
-          <td class="px-4 py-3"><div class="flex gap-2"><button class="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Restore</button><button class="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs">Ledger</button></div></td>
-        </tr>
-        <tr>
-          <td class="px-4 py-3 font-mono text-cyan-300">PX-2MNB77</td><td class="px-4 py-3">old@example.com</td>
-          <td class="px-4 py-3">USER</td>
-          <td class="px-4 py-3"><span class="badge bg-slate-500/15 text-slate-300 border border-slate-400/30">DEACTIVATED</span></td>
-          <td class="px-4 py-3">—</td>
-          <td class="px-4 py-3"><button class="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs">Ledger</button></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-    <div class="glass w-full max-w-sm rounded-2xl p-6">
-      <h2 class="text-lg font-bold text-white">Suspend PX-K7Q2M9?</h2>
-      <p class="mt-2 text-sm text-slate-400">Fail-closed sequence: block provider sub-users first, then revoke sessions, then flip DB status. Destructive — confirm twice.</p>
-      <div class="mt-4 flex gap-2">
-        <button onclick="document.getElementById('modal').classList.add('hidden')" class="flex-1 rounded-xl border border-white/10 bg-white/5 py-2 text-sm">Cancel</button>
-        <button class="flex-1 rounded-xl bg-amber-500 py-2 text-sm font-semibold text-black">Confirm suspend</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Users - ProxyData</title>
+    <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+      :root {
+        --bg-obsidian: #09090b;
+        --accent-cyan: #06b6d4;
+      }
+      body {
+        background-color: var(--bg-obsidian);
+        color: #f4f4f5;
+        font-family: "Inter", sans-serif;
+      }
+      .glass-panel {
+        background: rgba(24, 24, 27, 0.6);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .custom-input {
+        background: rgba(9, 9, 11, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .custom-input:focus {
+        border-color: #06b6d4;
+      }
+      table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+      }
+      th {
+        background: rgba(255, 255, 255, 0.02);
+        text-align: left;
+        padding: 12px 16px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #a1a1aa;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      td {
+        padding: 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 14px;
+        color: #e4e4e7;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+    </style>
+  </head>
+  <body class="antialiased min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <nav
+      class="sticky top-0 z-50 border-b border-white/5 bg-[#09090b]/90 backdrop-blur-md"
+    >
+      <div
+        class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-8">
+          <div class="font-bold text-xl tracking-tight text-white">
+            ProxyData
+            <span
+              class="text-cyan-400 text-sm ml-2 px-2 py-0.5 bg-cyan-500/10 rounded"
+              >ADMIN</span
+            >
+          </div>
+          <div class="hidden md:flex gap-6 text-sm font-medium text-zinc-400">
+            <a href="#" class="hover:text-white transition-colors">Overview</a>
+            <a href="#" class="text-white">Users</a>
+            <a
+              href="v1_admin_config.html"
+              class="hover:text-white transition-colors"
+              >Configuration</a
+            >
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-  <p class="mt-4 text-xs text-slate-500">Status vocabulary locked: ACTIVE · PENDING · SUSPENDED · EXPIRED · DEACTIVATED — never “Banned”. Mockup — no backend wired.</p>
-</main>
-</body>
+    </nav>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-white tracking-tight">
+            User Management
+          </h1>
+          <p class="text-sm text-zinc-400 mt-1">
+            Suspend users, manage balances, and rotate sessions.
+          </p>
+        </div>
+        <div>
+          <input
+            type="text"
+            class="custom-input w-64"
+            placeholder="Search email or UserID..."
+          />
+        </div>
+      </div>
+
+      <div class="glass-panel rounded-2xl overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Status</th>
+                <th>Total Spent</th>
+                <th>Datacenter Data</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="font-medium text-white">johndoe@example.com</div>
+                  <div class="text-xs text-zinc-500 mt-0.5">ID: usr_9x8f72</div>
+                </td>
+                <td>
+                  <span
+                    class="px-2 py-1 text-xs font-bold bg-green-500/10 text-green-400 border border-green-500/20 rounded-md"
+                    >Active</span
+                  >
+                </td>
+                <td>৳4,250</td>
+                <td><span class="text-cyan-400 font-medium">12.4 GB</span></td>
+                <td>
+                  <div class="flex gap-2">
+                    <button
+                      class="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-white rounded transition-colors"
+                    >
+                      Edit GB
+                    </button>
+                    <button
+                      class="px-3 py-1.5 text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded transition-colors"
+                    >
+                      Suspend
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="font-medium text-white">badactor@spam.com</div>
+                  <div class="text-xs text-zinc-500 mt-0.5">ID: usr_2a1b9c</div>
+                </td>
+                <td>
+                  <span
+                    class="px-2 py-1 text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-md"
+                    >Suspended</span
+                  >
+                </td>
+                <td>৳500</td>
+                <td><span class="text-zinc-500 font-medium">0.0 GB</span></td>
+                <td>
+                  <div class="flex gap-2">
+                    <button
+                      class="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-white rounded transition-colors"
+                    >
+                      Edit GB
+                    </button>
+                    <button
+                      class="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-white rounded transition-colors"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </body>
 </html>

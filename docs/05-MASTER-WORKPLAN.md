@@ -74,33 +74,33 @@ _Goal: Build the reusable UI primitives._
 
 _Goal: Architect the data layer with strict protections. Schemas are Zod-validated documents per `02`; there are no Mongoose models._
 
-- [ ] 46. Install `mongodb` (Native driver) + `zod`. Do NOT install `mongoose`.
-- [ ] 47. Create `src/lib/mongodb.ts` connection manager (single shared `MongoClient`, global-cached across hot reloads).
-- [ ] 48. Implement global cached connection logic (prevent hot-reload leaks).
-- [ ] 49. Force `maxPoolSize: 10` in connection options (Hostinger/Free Tier safety).
-- [ ] 50. Implement connection error catching and auto-retry logic.
+- [x] 46. Install `mongodb` (Native driver) + `zod`. Do NOT install `mongoose`.
+- [x] 47. Create `src/lib/mongodb.ts` connection manager (single shared `MongoClient`, global-cached across hot reloads).
+- [x] 48. Implement global cached connection logic (prevent hot-reload leaks).
+- [x] 49. Force `maxPoolSize: 10` in connection options (Hostinger/Free Tier safety).
+- [x] 50. Implement connection error catching and auto-retry logic.
 
 ## PHASE 5: Zod Schemas & Collections (mirror `02` — field names below are LOCKED-SPEC)
 
 _Goal: Define the strict data shapes. Every name here must match `02-DATABASE-ARCHITECTURE.md`; on drift, `02` wins. No Mongoose — Zod schemas + Native driver._
 
-- [ ] 51. `users` (Better Auth identity + business fields): `publicUserId` (CSPRNG `PX-` + Crockford Base32, unique index; never sequential).
-- [ ] 52. `users`: `email` (immutable via self-service, unique).
-- [ ] 53. Auth credentials live in Better Auth's `accounts`/`sessions`/`verification_tokens` collections — NO local `passwordHash` field anywhere.
-- [ ] 54. `users`: `role` (`ROLE_ADMIN` | `ROLE_USER`) + `capabilities` (e.g. `CAPABILITY_AFFILIATE`).
-- [ ] 55. `users`: `status` (`ACTIVE` | `SUSPENDED` | `DEACTIVATED`) — never `isBanned`.
-- [ ] 56. `proxy_accounts`: one row per `(userId, providerId, proxyType)` across the 4-pool enum → upstream int `providerSubUserId`, `poolTypeRaw`, AES-256-GCM `password` blob (replaces any single-`dataImpulseSubUserId` draft).
-- [ ] 57. `transactions`: `userId` ref + `type` (`PURCHASE` | `REDEEM` | `ADMIN_ADJUSTMENT`).
-- [ ] 58. `transactions`: 9-status machine per `01` §16.2 (never invented statuses).
-- [ ] 59. `transactions`: `bandwidthBytes` + full `*Bdt` pricing snapshot + `poolCoefficient`/`filterMultiplier` + `trafficAddedGb`/`balanceChargedGb`.
-- [ ] 60. `transactions`: `paymentReference` (sparse unique) + `senderNumber` + `timestamps{createdAt,approvedAt,activatedAt,expiredAt}`.
+- [x] 51. `users` (Better Auth identity + business fields): `publicUserId` (CSPRNG `PX-` + Crockford Base32, unique index; never sequential).
+- [x] 52. `users`: `email` (immutable via self-service, unique).
+- [x] 53. Auth credentials live in Better Auth's `accounts`/`sessions`/`verification_tokens` collections — NO local `passwordHash` field anywhere.
+- [x] 54. `users`: `role` (`ROLE_ADMIN` | `ROLE_USER`) + `capabilities` (e.g. `CAPABILITY_AFFILIATE`).
+- [x] 55. `users`: `status` (`ACTIVE` | `SUSPENDED` | `DEACTIVATED`) — never `isBanned`.
+- [x] 56. `proxy_accounts`: one row per `(userId, providerId, proxyType)` across the 4-pool enum → upstream int `providerSubUserId`, `poolTypeRaw`, AES-256-GCM `password` blob (replaces any single-`dataImpulseSubUserId` draft).
+- [x] 57. `transactions`: `userId` ref + `type` (`PURCHASE` | `REDEEM` | `ADMIN_ADJUSTMENT`).
+- [x] 58. `transactions`: 9-status machine per `01` §16.2 (never invented statuses).
+- [x] 59. `transactions`: `bandwidthBytes` + full `*Bdt` pricing snapshot + `poolCoefficient`/`filterMultiplier` + `trafficAddedGb`/`balanceChargedGb`.
+- [x] 60. `transactions`: `paymentReference` (sparse unique) + `senderNumber` + `timestamps{createdAt,approvedAt,activatedAt,expiredAt}`.
 - [ ] 61. Index pass: unique `(userId,providerId,proxyType)`, `(couponId,transactionId)`, `(transactionId,operationType)`, `(transactionId)` on commissions, `(referredUserId)` on referrals, upsert key on metadata (per `02` §32).
-- [ ] 62. `proxy_configurations`: 1:1 with `proxy_accounts` (`proxyAccountId` unique) — mode/mode-ports, country + 2x filters, exclude-ASN, threads/rotation/anonymous, `whitelistedIps` (move semantics), `consentForSupportView`.
-- [ ] 63. Config targeting fields follow `03` §6 grammar inputs (country-first rule); the wire suffix itself is built ONLY by adapter `buildTargetingSuffix()`.
-- [ ] 64. `protocol` (`http` | `socks5`, subset of live `supported-protocols/get`) + `mode` (`rotating` | `sticky`).
-- [ ] 65. `rotationInterval` + `anonymousFilter` passthrough + `stickyRange` mirror.
-- [ ] 66. `coupons`: `code` (unique, case-insensitive collation), `FIXED_AMOUNT`/`PERCENTAGE` + `maxDiscountAmount` cap.
-- [ ] 67. `coupons`: `bandwidthGb` scoping via `planId`/`userId` targeting (no `gbReward` pseudo-field).
+- [x] 62. `proxy_configurations`: 1:1 with `proxy_accounts` (`proxyAccountId` unique) — mode/mode-ports, country + 2x filters, exclude-ASN, threads/rotation/anonymous, `whitelistedIps` (move semantics), `consentForSupportView`.
+- [x] 63. Config targeting fields follow `03` §6 grammar inputs (country-first rule); the wire suffix itself is built ONLY by adapter `buildTargetingSuffix()`.
+- [x] 64. `protocol` (`http` | `socks5`, subset of live `supported-protocols/get`) + `mode` (`rotating` | `sticky`).
+- [x] 65. `rotationInterval` + `anonymousFilter` passthrough + `stickyRange` mirror.
+- [x] 66. `coupons`: `code` (unique, case-insensitive collation), `FIXED_AMOUNT`/`PERCENTAGE` + `maxDiscountAmount` cap.
+- [x] 67. `coupons`: `bandwidthGb` scoping via `planId`/`userId` targeting (no `gbReward` pseudo-field).
 - [ ] 68. `coupons`: `usageLimit` + `$inc`-only `usageCount` with `usageCount < usageLimit` guard in the approval transaction.
 - [ ] 69. `coupons`/`offers`/`redeem_codes`: `validFrom`/`validTo` + `createdAt`; `redeem_codes.status` 7-state machine.
 - [ ] 70. `notifications`: `userId`, locked `type` enum (`02` §29), `title`, `message` (no secrets), `read`, 90-day TTL.

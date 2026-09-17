@@ -1,14 +1,12 @@
 import { defaultCache } from "@serwist/next/worker";
-import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import type { PrecacheEntry } from "serwist";
 import { Serwist } from "serwist";
 
-declare global {
-  interface WorkerGlobalScope extends SerwistGlobalConfig {
-    __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
-  }
-}
-
-declare const self: ServiceWorkerGlobalScope;
+// Typed locally: the service-worker global is unavailable to tsc
+// (tsconfig lib has no WebWorker types), and Serwist only reads the manifest.
+declare const self: {
+  __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
+};
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,

@@ -4,8 +4,8 @@ import { Button } from "@heroui/react";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6">
-      <div className="max-w-xl text-center space-y-6">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 p-6 text-white">
+      <div className="max-w-xl space-y-6 text-center">
         <h1 className="text-4xl font-bold tracking-tight">
           ProxyData <span className="text-cyan-400">Next.js 16</span>{" "}
           Boilerplate
@@ -14,11 +14,9 @@ export default function Home() {
           The strict tech stack is successfully installed. HeroUI v3, Tailwind
           v4, and Serwist are fully operational.
         </p>
-        <div className="pt-4 flex justify-center gap-4">
-          <Button color="primary" variant="shadow">
-            Smoke Test HeroUI
-          </Button>
-          <Button color="default" variant="bordered" className="text-white">
+        <div className="flex justify-center gap-4 pt-4">
+          <Button>Smoke Test HeroUI</Button>
+          <Button variant="secondary" className="text-white">
             Phase 2 Complete
           </Button>
         </div>

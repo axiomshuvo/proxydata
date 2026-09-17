@@ -13,26 +13,21 @@ export type BadgeStatus =
   | "Suspended"
   | "Expired";
 
-export function StatusBadge({ status }: { status: BadgeStatus }) {
-  const colorMap: Record<
-    BadgeStatus,
-    "success" | "warning" | "danger" | "danger" | "default"
-  > = {
-    Active: "success",
-    Pending: "warning",
-    Rejected: "danger",
-    Suspended: "danger",
-    Expired: "default",
-  };
+const colorMap: Record<
+  BadgeStatus,
+  "success" | "warning" | "danger" | "default"
+> = {
+  Active: "success",
+  Pending: "warning",
+  Rejected: "danger",
+  Suspended: "danger",
+  Expired: "default",
+};
 
+export function StatusBadge({ status }: { status: BadgeStatus }) {
   return (
-    <Chip
-      color={colorMap[status]}
-      variant="flat"
-      size="sm"
-      className="font-medium"
-    >
-      {status}
+    <Chip color={colorMap[status]} variant="soft" size="sm" className="font-medium">
+      <Chip.Label>{status}</Chip.Label>
     </Chip>
   );
 }

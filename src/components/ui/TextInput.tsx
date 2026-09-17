@@ -1,23 +1,32 @@
-import { Input, type InputProps } from "@heroui/react";
+import { FieldError, Input, Label, TextField, type InputProps } from "@heroui/react";
+import type { ReactNode } from "react";
 
 /*
   Phase 3 - Step 33: TextInput
   Standardized text input field enforcing our dark theme styling and external label placement.
 */
 
-export function TextInput(props: InputProps) {
+interface TextInputProps extends InputProps {
+  label?: ReactNode;
+  errorMessage?: ReactNode;
+  name?: string;
+}
+
+export function TextInput({ label, errorMessage, ...props }: TextInputProps) {
   return (
-    <Input
-      variant="bordered"
-      labelPlacement="outside"
-      classNames={{
-        inputWrapper:
-          "bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 focus-within:!border-cyan-500",
-        label: "text-zinc-400 font-medium",
-        input: "text-zinc-100",
-        errorMessage: "text-red-500",
-      }}
-      {...props}
-    />
+    <TextField
+      isInvalid={!!errorMessage}
+      name={props.name}
+      variant="secondary"
+      className="w-full"
+    >
+      {label && <Label className="font-medium text-zinc-400">{label}</Label>}
+      <Input
+        variant="secondary"
+        className="border-zinc-800 bg-zinc-900/50 text-zinc-100 placeholder:text-zinc-500"
+        {...props}
+      />
+      {errorMessage && <FieldError className="text-red-500">{errorMessage}</FieldError>}
+    </TextField>
   );
 }

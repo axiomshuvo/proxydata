@@ -1,0 +1,9 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - heading "ProxyData Next.js 16 Boilerplate" [level=1] [ref=e4]
+      - paragraph [ref=e5]: The strict tech stack is successfully installed. HeroUI v3, Tailwind v4, and Serwist are fully operational.
+      - generic [ref=e6]:
+        - button "Smoke Test HeroUI" [ref=e7] [cursor=pointer]
+        - button "Phase 2 Complete" [ref=e8] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e14] [cursor=pointer]
