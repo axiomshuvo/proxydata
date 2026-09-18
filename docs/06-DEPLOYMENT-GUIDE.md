@@ -40,9 +40,10 @@ ADMIN_RECEIVER_EMAIL="techshuvo@gmail.com"
 DATAIMPULSE_API_LOGIN="your-dataimpulse-email"
 DATAIMPULSE_API_PASSWORD="your-dataimpulse-password"
 
-# Admin Route Security
-ADMIN_PATH="/axiomshuvo"
-MASTER_ADMIN_EMAIL="techshuvo@gmail.com"
+# Admin Route Security (generate a RANDOM path per deploy — NEVER reuse a
+# value that appears in git history, chat logs, or old client bundles)
+ADMIN_PATH="/ops-x7q2m9zt"
+MASTER_ADMIN_EMAIL="you@yourdomain.com"
 ```
 
 ## 3. Uploading Code (Git Connect)
@@ -79,5 +80,5 @@ npm run build
 Once the app is running on your live domain:
 1. Go to `https://yourdomain.com/user/sign-in` and log in with Google using `techshuvo@gmail.com`.
 2. Because this matches `MASTER_ADMIN_EMAIL`, the system will automatically bootstrap your account with `ROLE_ADMIN`.
-3. Go to `https://yourdomain.com/axiomshuvo`. You should be granted access.
+3. Go to `https://yourdomain.com/<ADMIN_PATH>`. You should be granted access.
 4. Create a dummy transaction and approve it to verify the DataImpulse API connects from the live server.

@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import { PWAInstallPrompt } from "@/components/ui/PWAInstallPrompt";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,6 +17,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ProxyData — Mobile-First Proxy Bandwidth",
   description: "Buy proxy bandwidth by the GB. Instant activation, honest pricing, mobile-first.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "ProxyData",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/icon-192x192.png",
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#09090b",
 };
 
 export default function RootLayout({
@@ -30,6 +45,7 @@ export default function RootLayout({
       >
         {children}
         <ToastProvider />
+        <PWAInstallPrompt />
       </body>
     </html>
   );
