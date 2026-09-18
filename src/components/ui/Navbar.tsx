@@ -1,6 +1,7 @@
 "use client";
 import { ADMIN_PREVIEW_BASE } from "@/lib/admin";
 import { Bell, Check, Copy, Envelope, House, Person, ShoppingCart } from "@gravity-ui/icons";
+import { PWAInstallBanner } from "./PWAInstallBanner";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
@@ -209,6 +210,9 @@ export function Navbar({
         </div>
       </div>
     </header>
+
+    {/* Persistent install surface: session-only dismiss, refresh shows again. */}
+    <PWAInstallBanner />
 
     {/* App-like bottom bar on small screens for public navigation.
         CustomerShell passes links={[]} (its Sidebar owns the authed bottom bar),

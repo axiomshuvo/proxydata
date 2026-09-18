@@ -1,89 +1,51 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePWAInstall } from "./usePWAInstall";
 
 /*
-  Install prompt (workplan step 188): Android/Chrome fires
-  `beforeinstallprompt` (we show a bottom sheet); iOS never prompts, so we
-  show Share → "Add to Home Screen" instructions instead. Dismissal persists
-  30 days. Hidden once running installed (standalone) already.
+  Bottom-sheet install prompt.
+  Persistence model (per request): dismiss (X) hides it for THIS view only.
+  No localStorage — a refresh / revisit shows it again until the app is
+  installed (standalone). Shares one `beforeinstallprompt` via usePWAInstall
+  so the after-navbar banner and this sheet never race each other.
 */
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-const DISMISS_KEY = "pwa-install-dismissed";
-
 export function PWAInstallPrompt() {
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
+  const { deferred, isInstalled, isIOS, install } = usePWAInstall();
   const [visible, setVisible] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
+  const [showManual, setShowManual] = useState(false);
 
+  // Show on `beforeinstallprompt`, otherwise teaser after a beat (iOS has no
+  // event; desktop may delay the event). Never show when installed.
   useEffect(() => {
-    // Already installed → never show.
-    if (window.matchMedia("(display-mode: standalone)").matches) return;
-    try {
-      const until = Number(localStorage.getItem(DISMISS_KEY) || 0);
-      if (until && Date.now() > until) localStorage.removeItem(DISMISS_KEY);
-      else if (until) return; // dismissed (still fresh)
-    } catch {
-      // Private mode — carry on without persistence.
-    }
-
-    const ua = window.navigator.userAgent;
-    const ios = /iphone|ipad|ipod/i.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream;
-    setIsIOS(ios);
-
-    const onPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-      setVisible(true);
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    // iOS has no event — show the instructions after a beat, once per visitor.
-    let t: ReturnType<typeof setTimeout> | undefined;
-    if (ios) {
-      t = setTimeout(() => setVisible(true), 4000);
-    }
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      if (t) clearTimeout(t);
-    };
-  }, []);
-
-  if (!visible) return null;
-
-  const dismiss = (days = 30) => {
-    try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now() + days * 86400000));
-    } catch {
-      // Private mode — just hide for this visit.
-    }
-    setVisible(false);
-  };
-
-  // Expired dismissal handled in the main effect above.
-
-  const install = async () => {
-    if (!deferred) {
-      dismiss();
+    if (isInstalled) {
+      setVisible(false);
       return;
     }
-    await deferred.prompt();
-    const { outcome } = await deferred.userChoice;
-    setDeferred(null);
-    if (outcome === "accepted") {
-      try {
-        localStorage.removeItem(DISMISS_KEY);
-      } catch {
-        // ignore
-      }
-      setVisible(false);
-    } else {
-      dismiss();
+    if (deferred) {
+      setVisible(true);
+      return;
     }
+    const t = setTimeout(() => setVisible(true), 2500);
+    return () => clearTimeout(t);
+  }, [deferred, isInstalled]);
+
+  if (!visible || isInstalled) return null;
+
+  // Session-only dismiss: refresh mounts fresh state → shows again.
+  const dismiss = () => setVisible(false);
+
+  const onInstall = async () => {
+    if (!deferred) {
+      // No native prompt available — show manual steps instead of a dead btn.
+      setShowManual((v) => !v);
+      return;
+    }
+    const outcome = await install();
+    // Accepted → hook flips isInstalled and unmounts us.
+    // Prompt-dismissed → hide for this view; refresh shows again.
+    if (outcome !== "accepted") dismiss();
   };
 
   return (
@@ -101,23 +63,28 @@ export function PWAInstallPrompt() {
           </div>
           <button
             type="button"
-            onClick={() => dismiss()}
+            onClick={dismiss}
             aria-label="Dismiss install prompt"
             className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-zinc-500 hover:bg-white/5 hover:text-white"
           >
             ✕
           </button>
         </div>
-        {!isIOS && (
+        {!isIOS || deferred ? (
           <button
             type="button"
-            onClick={install}
-            disabled={!deferred}
-            className="mt-4 w-full min-h-12 rounded-xl bg-cyan-500 text-sm font-bold text-black hover:bg-cyan-400 disabled:opacity-40"
+            onClick={onInstall}
+            className="mt-4 w-full min-h-12 rounded-xl bg-cyan-500 text-sm font-bold text-black hover:bg-cyan-400"
           >
             Install app
           </button>
-        )}
+        ) : null}
+        {showManual && !deferred && !isIOS ? (
+          <p className="mt-3 text-xs leading-5 text-zinc-400">
+            Tap your browser menu <span className="text-white font-bold">⋮ → “Install app” / “Add to Home Screen”</span> to
+            pin ProxyData.
+          </p>
+        ) : null}
       </div>
     </div>
   );
