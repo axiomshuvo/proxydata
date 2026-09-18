@@ -1,5 +1,4 @@
 import withSerwistInit from "@serwist/next";
-import type { NextConfig } from "next";
 
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
@@ -7,14 +6,10 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV === "development",
 });
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   output: "standalone",
-  // Turbopack for `next dev` (SW is disabled in dev, so the Serwist webpack
-  // plugin sitting idle is harmless). Production `build` stays on --webpack
-  // where Serwist precaching actually runs.
   turbopack: {},
-  // Split HeroUI's 72-component barrel per import — faster dev compiles,
-  // smaller client bundles. Zero API change.
   experimental: {
     optimizePackageImports: ["@heroui/react"],
     serverActions: {

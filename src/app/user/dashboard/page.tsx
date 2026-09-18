@@ -7,6 +7,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
+import { notifySuccess } from "@/components/ui/ToastProvider";
 
 // Standard SWR fetcher
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -16,6 +17,7 @@ export default function UserDashboard() {
   const { data: session, isPending } = authClient.useSession();
 
   // Bind a pending referral once (OAuth round-trip stores it pre-redirect).
+  // Same trip also raises the one-time post-OAuth welcome toast.
   useEffect(() => {
     const ref = sessionStorage.getItem("pending_ref");
     if (!ref || !session?.user) return;
@@ -24,6 +26,16 @@ export default function UserDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: ref }),
     }).finally(() => sessionStorage.removeItem("pending_ref"));
+  }, [session?.user]);
+
+  useEffect(() => {
+    if (!session?.user || !sessionStorage.getItem("oauth_welcome")) return;
+    sessionStorage.removeItem("oauth_welcome");
+    const u = session.user as unknown as { name?: string; createdAt?: string };
+    const firstName = (u.name || "there").split(" ")[0];
+    const fresh =
+      u.createdAt ? Date.now() - new Date(u.createdAt).getTime() < 2 * 60 * 1000 : false;
+    notifySuccess(fresh ? `Welcome to ProxyData, ${firstName}` : `Welcome back, ${firstName}`);
   }, [session?.user]);
   
   // 2. Fetch Live Proxy Accounts — balances are display data: share one

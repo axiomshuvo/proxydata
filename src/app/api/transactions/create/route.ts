@@ -129,6 +129,22 @@ export async function POST(req: Request) {
       "Order placed",
       `Your order for ${plan.name} is now pending approval. Please complete your payment.`
     );
+    
+    // Alert the Admin via Email that an order needs approval
+    const { sendEmail } = await import("@/lib/email");
+    const { env } = await import("@/lib/env");
+    await sendEmail({
+      to: env.ADMIN_RECEIVER_EMAIL,
+      subject: `🚨 New Order Pending: ${plan.name}`,
+      html: `
+        <h3>New Proxy Order Pending Approval</h3>
+        <p>User <b>${session.user.email}</b> just placed an order for ${bandwidthGb} GB (${plan.name}).</p>
+        <p>Transaction ID: ${transaction.transactionId}</p>
+        <p>Amount: ৳${finalPriceBdt}</p>
+        <br/>
+        <a href="${env.NEXT_PUBLIC_APP_URL}/axiomshuvo/approvals">Click here to approve the transaction</a>
+      `
+    });
 
 
     return NextResponse.json({ 

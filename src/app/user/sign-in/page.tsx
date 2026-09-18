@@ -18,6 +18,7 @@ export default function SignInPage() {
   const handleGoogleSignIn = async () => {
     setGooglePending(true);
     try {
+      sessionStorage.setItem("oauth_welcome", "1");
       await authClient.signIn.social({
         provider: "google",
         callbackURL: "/user/dashboard",

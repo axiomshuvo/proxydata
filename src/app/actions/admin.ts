@@ -537,47 +537,9 @@ export async function approveTransaction(transactionId: string) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Plans (FIXED bundles + TIERED flex) + wholesale buying cost         */
+/* Plans (FIXED bundles + TIERED flex)                                 */
+/* (Buying costs live on the Providers registry — see saveProvider.)   */
 /* ------------------------------------------------------------------ */
-
-/** Single wholesale buying cost (৳/GB). Per-pool floors derive via
- *  pool coefficients (Res ×1, DC ×0.5, Mobile ×2, Premium ×5). */
-export async function getWholesaleCosts(): Promise<WholesaleCostMap> {
-  await requireAdmin();
-  const client = await clientPromise;
-  const doc = await client.db().collection("providers").findOne({ providerId: "dataimpulse" });
-  const base =
-    Number(doc?.wholesaleBaseBdt ?? (doc?.costPerGbBdt as WholesaleCostMap | undefined)?.RESIDENTIAL ?? 0) || 0;
-  return { RESIDENTIAL: base, MOBILE: base, DATACENTER: base, PREMIUM_RESIDENTIAL: base };
-}
-
-export async function saveWholesaleCosts(costs: WholesaleCostMap) {
-  await requireAdmin();
-  // Single-input form sends the base under every key — or a bare number.
-  const base = Number((costs as Record<string, unknown>).RESIDENTIAL);
-  if (!Number.isInteger(base) || base < 0) throw new Error("Buying cost must be an integer ≥ 0 BDT/GB.");
-  const map: WholesaleCostMap = {
-    RESIDENTIAL: base,
-    MOBILE: base,
-    DATACENTER: base,
-    PREMIUM_RESIDENTIAL: base,
-  };
-  const client = await clientPromise;
-  await client.db().collection("providers").updateOne(
-    { providerId: "dataimpulse" },
-    {
-      $set: {
-        providerId: "dataimpulse",
-        name: "DataImpulse",
-        wholesaleBaseBdt: base,
-        costPerGbBdt: map,
-        updatedAt: new Date(),
-      },
-    },
-    { upsert: true },
-  );
-  return { success: true, costs: map };
-}
 
 /** All plans for the admin table (any status). */
 export async function getPlansAdmin() {

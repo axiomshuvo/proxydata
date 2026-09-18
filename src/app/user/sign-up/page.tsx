@@ -22,6 +22,7 @@ export default function SignUpPage() {
       // Preserve referral across the OAuth round-trip for post-login binding.
       const ref = new URLSearchParams(window.location.search).get("ref");
       if (ref) sessionStorage.setItem("pending_ref", ref);
+      sessionStorage.setItem("oauth_welcome", "1");
       await authClient.signIn.social({
         provider: "google",
         callbackURL: "/user/dashboard",

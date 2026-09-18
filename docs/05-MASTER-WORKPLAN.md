@@ -350,11 +350,11 @@ _Goal: Polish for production._
 
 _Goal: Prepare the codebase for the Hostinger Node.js environment._
 
-- [ ] 191. Ensure `package.json` build/start scripts are strictly standard for Hostinger Git Connect.
-- [ ] 192. Document the exact Build Command (`npm run build`) and Start Command (`npm start`) needed for the Hostinger panel.
-- [ ] 193. Update `next.config.js` for deployment (`output: 'standalone'`).
-- [ ] 194. Document environment variables required in Hostinger panel.
-- [ ] 195. Write deployment script/readme for user.
+- [x] 191. Ensure `package.json` build/start scripts are strictly standard for Hostinger Git Connect.
+- [x] 192. Document the exact Build Command (`npm run build`) and Start Command (`npm start`) needed for the Hostinger panel.
+- [x] 193. Update `next.config.js` for deployment (`output: 'standalone'`).
+- [x] 194. Document environment variables required in Hostinger panel.
+- [x] 195. Write deployment script/readme for user.
 
 ## PHASE 17: Production Launch Checks
 
