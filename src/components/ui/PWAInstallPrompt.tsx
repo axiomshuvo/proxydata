@@ -48,6 +48,10 @@ export function PWAInstallPrompt() {
     if (outcome !== "accepted") dismiss();
   };
 
+  // iOS Safari never fires `beforeinstallprompt` — Apple requires a manual
+  // Share → Add to Home Screen. So there is no programmatic install to trigger.
+  const isIOSManual = isIOS && !deferred;
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-[70] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <div className="mx-auto max-w-md rounded-3xl border border-white/10 bg-zinc-950/95 p-5 shadow-2xl backdrop-blur-md">
@@ -56,8 +60,8 @@ export function PWAInstallPrompt() {
           <div className="flex-1">
             <p className="font-bold text-white text-sm">Install ProxyData</p>
             <p className="text-xs text-zinc-400 mt-0.5">
-              {isIOS && !deferred
-                ? "Tap Share, then “Add to Home Screen” for the full app feel."
+              {isIOSManual
+                ? "iPhone needs a manual add — 3 taps, 10 seconds."
                 : "App-like access, offline shell, one tap from home."}
             </p>
           </div>
@@ -70,7 +74,22 @@ export function PWAInstallPrompt() {
             ✕
           </button>
         </div>
-        {!isIOS || deferred ? (
+        {isIOSManual ? (
+          <>
+            <ol className="mt-4 space-y-1.5 text-xs leading-5 text-zinc-300">
+              <li><span className="font-bold text-white">1.</span> Tap <span className="font-bold text-white">Share ↑</span> in the Safari toolbar below.</li>
+              <li><span className="font-bold text-white">2.</span> Tap <span className="font-bold text-white">“Add to Home Screen”</span>.</li>
+              <li><span className="font-bold text-white">3.</span> Tap <span className="font-bold text-white">Add</span> (top-right).</li>
+            </ol>
+            <button
+              type="button"
+              onClick={dismiss}
+              className="mt-4 w-full min-h-12 rounded-xl bg-cyan-500 text-sm font-bold text-black hover:bg-cyan-400"
+            >
+              Got it
+            </button>
+          </>
+        ) : (
           <button
             type="button"
             onClick={onInstall}
@@ -78,7 +97,7 @@ export function PWAInstallPrompt() {
           >
             Install app
           </button>
-        ) : null}
+        )}
         {showManual && !deferred && !isIOS ? (
           <p className="mt-3 text-xs leading-5 text-zinc-400">
             Tap your browser menu <span className="text-white font-bold">⋮ → “Install app” / “Add to Home Screen”</span> to

@@ -16,6 +16,9 @@ export function PWAInstallBanner() {
 
   if (dismissed || isInstalled) return null;
 
+  // iOS Safari has no programmatic install — the button can only reveal steps.
+  const isIOSManual = isIOS && !deferred;
+
   const onInstall = async () => {
     if (!deferred) {
       setShowManual((v) => !v);
@@ -47,9 +50,10 @@ export function PWAInstallBanner() {
         <button
           type="button"
           onClick={onInstall}
+          aria-expanded={showManual}
           className="flex min-h-11 shrink-0 items-center rounded-xl bg-cyan-500 px-4 text-xs font-bold text-black hover:bg-cyan-400 sm:text-sm"
         >
-          Install
+          {isIOSManual ? (showManual ? "Hide steps" : "Steps") : "Install"}
         </button>
         <button
           type="button"
@@ -62,9 +66,11 @@ export function PWAInstallBanner() {
       </div>
       {showManual && !deferred ? (
         <p className="mx-auto max-w-7xl px-4 pb-2.5 text-[11px] leading-5 text-zinc-400 sm:px-6">
-          {isIOS
-            ? "Tap Share, then “Add to Home Screen” to pin ProxyData."
-            : "Tap your browser menu ⋮ → “Install app” / “Add to Home Screen” to pin ProxyData."}
+          {isIOSManual ? (
+            <>Tap <span className="font-bold text-white">Share ↑</span> → <span className="font-bold text-white">“Add to Home Screen”</span> → <span className="font-bold text-white">Add</span>. iPhones can’t auto-install — Apple requires these 3 taps.</>
+          ) : (
+            "Tap your browser menu ⋮ → “Install app” / “Add to Home Screen” to pin ProxyData."
+          )}
         </p>
       ) : null}
     </div>
