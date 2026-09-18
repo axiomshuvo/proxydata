@@ -7,6 +7,22 @@ import { sendEmail } from "./email";
 
 
 export const auth = betterAuth({
+  baseURL: env.BETTER_AUTH_URL,
+  // Production CSRF: the browser origin (proxydata.store) must be trusted,
+  // otherwise the social callback is rejected and the UI hangs on "Connecting…".
+  trustedOrigins: Array.from(
+    new Set(
+      [env.BETTER_AUTH_URL, env.NEXT_PUBLIC_APP_URL]
+        .map((u) => {
+          try {
+            return new URL(u).origin;
+          } catch {
+            return null;
+          }
+        })
+        .filter((o): o is string => !!o),
+    ),
+  ),
   database: mongodbAdapter(mongoClient.db()),
   emailAndPassword: {
     enabled: true,
