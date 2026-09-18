@@ -94,7 +94,7 @@ _Goal: Define the strict data shapes. Every name here must match `02-DATABASE-AR
 - [x] 58. `transactions`: 9-status machine per `01` §16.2 (never invented statuses).
 - [x] 59. `transactions`: `bandwidthBytes` + full `*Bdt` pricing snapshot + `poolCoefficient`/`filterMultiplier` + `trafficAddedGb`/`balanceChargedGb`.
 - [x] 60. `transactions`: `paymentReference` (sparse unique) + `senderNumber` + `timestamps{createdAt,approvedAt,activatedAt,expiredAt}`.
-- [ ] 61. Index pass: unique `(userId,providerId,proxyType)`, `(couponId,transactionId)`, `(transactionId,operationType)`, `(transactionId)` on commissions, `(referredUserId)` on referrals, upsert key on metadata (per `02` §32).
+- [x] 61. Index pass: unique `(userId,providerId,proxyType)`, `(couponId,transactionId)`, `(transactionId,operationType)`, `(transactionId)` on commissions, `(referredUserId)` on referrals, upsert key on metadata (per `02` §32) — done in `scripts/apply-indexes.js` (2026-09-18 fix pass; also covers tx `transactionId`/`status+createdAt`, coupons/redeem/affiliate-code uniques, op-log sweeper).
 - [x] 62. `proxy_configurations`: 1:1 with `proxy_accounts` (`proxyAccountId` unique) — mode/mode-ports, country + 2x filters, exclude-ASN, threads/rotation/anonymous, `whitelistedIps` (move semantics), `consentForSupportView`.
 - [ ] 63. Config targeting fields follow `03` §6 grammar inputs (country-first rule); the wire suffix itself is built ONLY by adapter `buildTargetingSuffix()` — NOT DONE: `src/lib/dataimpulse/` adapter is Phase 7 work, schema fields only exist so far.
 - [x] 64. `protocol` (`http` | `socks5`, subset of live `supported-protocols/get`) + `mode` (`rotating` | `sticky`).
@@ -131,14 +131,15 @@ _Goal: Secure routes and manage sessions. Better Auth owns credentials/sessions;
 
 _Goal: Core integration with the upstream provider._
 
-- [ ] 86. Create `src/lib/dataimpulse/client.ts`.
-- [ ] 87. Build `getAuthToken()` method handling API login and token caching.
-- [ ] 88. Build `createSubUser()` method.
-- [ ] 89. Build `deleteSubUser()` method.
-- [ ] 90. Build `getSubUserBalance()` method.
-- [ ] 91. Build `addSubUserBalance()` method.
-- [ ] 92. Build `setSubUserStatus(blocked)` method.
-- [ ] 93. Build `setDefaultPoolParameters()` method.
+- [x] 86. Create `src/lib/dataimpulse/client.ts`.
+- [x] 87. Build `getAuthToken()` method handling API login and token caching.
+- [x] 88. Build `createSubUser()` method.
+- [x] 89. Build `deleteSubUser()` method.
+- [x] 90. Build `getSubUserBalance()` method.
+- [x] 91. Build `addSubUserBalance()` method.
+- [x] 92. Build `setSubUserStatus(blocked)` method.
+- [x] 93. Build `setDefaultPoolParameters()` method.
+  > NOTE (2026-09-18 fix pass): all adapter wire shapes corrected to `03` (query-param `subuser_id`, `{subuser_id,traffic/blocked}` bodies, integer-GB validation, `drop`/`addition-history`/`reset-password` helpers). Plus: approval lifecycle rewritten to `PENDING→APPROVED→ALLOCATING→PROVIDER_VERIFIED→ACTIVE` with op-log idempotency, redeem to `PROCESSING→PROVIDER_ALLOCATED→USED`, suspend to fail-closed, engine ports to `823/824`, schema enums to spec.
 - [ ] 94. **CONFIRMATION TEST**: run the `archive/06` §5 sandbox script (`traffic:1` → +1 GiB expected; fractional/zero handling; negative-subtract semantics). Default is already LOCKED to integer-GB in the adapter — this test confirms, not discovers.
 - [ ] 95. Record results in `03` §9; `TRAFFIC_UNIT_MULTIPLIER = 1073741824` stays hardcoded regardless.
 - [ ] 96. Implement adapter error handling (catching 400 NO_RAY, etc).
@@ -174,6 +175,74 @@ _Goal: Secure financial tracking and verification._
 - [x] 116. API Logic: allocate via adapter, confirm with `balance/get`, then advance `PROCESSING → PROVIDER_ALLOCATED → USED` (never mark `USED` before proof; failure reverts to `ACTIVE`).
 - [x] 117. API Logic: `REDEEM` transactions NEVER insert commissions (worker branch + test).
 - [x] 118. Build API: `GET /api/transactions` (Customer history with pagination).
+
+> NOTE (2026-09-18 — flex/volume pricing extension, `01` §13/§14 + `02` §11):
+> plans gained `pricingMode: FIXED | TIERED` + embedded `tiers[]` (`src/lib/db/schema.ts`);
+> `src/lib/pricing.ts` owns tier validation, quoting, and the buying-cost floor
+> (`floor = ceil(wholesale × poolCoefficient)`, wholesale from `providers.costPerGbBdt`);
+> checkout accepts `{planId, quantityGb}` for TIERED with server-side BELOW_COST reject;
+> approval re-validates tier coverage/rate and aborts to PENDING on drift; admin UI at
+> `ADMIN_PATH/plans` (buying-cost editor + tier editor with live validation/preview);
+> customer `/user/plans` renders TIERED cards with tier table + GB stepper capped by
+> `floor(resellerBalance / coefficient)`. All amounts integer BDT; commission/coupon/
+> affiliate flows bind to the flex plan ID unchanged.
+>
+> NOTE (2026-09-18 — providers registry + full admin wiring):
+> `providers` collection is now the registry (`ProviderDocSchema`: id, name, status,
+> pools, single wholesale base, per-pool coefficients, gateway). DataImpulse auto-seeds
+> ACTIVE with 4 pools + 823/824 gateway; future vendors sit DISABLED ("Coming Soon").
+> Plans carry `providerId` (selector in modal, ACTIVE-gate + pool check + per-provider
+> floor at save); checkout/approval/catalog all price off the plan's provider billing.
+> Admin registry UI at `ADMIN_PATH/providers` (edit, per-pool billing rule, gateway,
+> connection test). Public `/plans` marketing page (HeroUI Card/Button/Spinner) +
+> shared `PlanExplorer` slider card used by both `/plans` and `/user/plans`.
+> Admin wired end-to-end (zero mock rows): approvals queue + reason-required reject,
+> users table (search/filter/suspend modal/grant-revoke) + `users/[publicUserId]` detail
+> (inventory, ledger, partner, audit), coupons CRUD + usage drawer, affiliates ledger +
+> email-invite grant, payouts with overpay guard + history, system settings editor,
+> System Logs viewer (provider-ops + audit + 30d runtime logs, health strip: stock,
+> storage vs 512 MB, email X/100) with emit hooks in email/adapter/approval/cron.
+> Removed: `force-upgrade` + `seed` unauthenticated endpoints; passwords stripped from
+> `/api/proxy/accounts`; DEACTIVATED login block; admin link is role-based.
+>
+> NOTE (2026-09-18 — P1 money paths VERIFIED 14/14 + user routes live):
+> coupon best-discount pricing at checkout (offer vs coupon, tie→offer, % half-up,
+> invalid codes 400 with reason); atomic claim at approval (unique usage row +
+> CAS usageCount + one-time flip, idempotent retry, exhausted→abort); commission
+> decision incl. explicit ৳0 (plan→affiliate→global hierarchy, floor rounding,
+> profit-floor cap, self-use 0, Dhaka YYYY-MM, dup-tolerant); referral binding
+> endpoint (?ref= at signup incl. OAuth round-trip) + partner code actions
+> (≤8 chars, 3/day, active-cap, terminal disable). Verified live: 5GB×140−50=650
+> order, bad-coupon 400, abort-to-PENDING on unreachable upstream with zero coupon
+> consumption, 14/14 harness green (harness removed after). Two real bugs the
+> harness caught and fixed: claim-retry order vs exhaustion check, ApprovalAbort
+> vs FAILED misclassification. User routes now live: proxy-config (real accounts,
+> reveal-once passwords, entitlement gates), transactions (scoped + pagination),
+> affiliate (codes/history/balances), profile (identity/name/password/reset-link),
+> forgot/reset wired, checkout→plans redirect, throttled contact tickets.
+>
+> NOTE (2026-09-18 — unified Codes area):
+> `ADMIN_PATH/codes` replaces the coupon popup: segmented Redeem|Coupon tabs,
+> inline forms, generator-only codes (no manual entry anywhere). Redeem mint:
+> provider→pool→plan (auto-fills GB, editable 1–1000)→valuation→validity
+> (default 30d); 16-char Crockford CSPRNG, masked list (full shown once + copy),
+> disable action. Coupon mint: provider→plan cascade, type toggle, ৳10/20/30/50
+> chips, % with cap, One-Time preselected, optional user bind (server-resolved),
+> dates, limit. Old `/coupons` route redirects to `/codes`. Verified live:
+> minted 5GB RESIDENTIAL code via UI → claimed as customer → clean revert to
+> ACTIVE with zero ledger rows on dead upstream; test data removed after.
+>
+> NOTE (2026-09-18 — speed A+B):
+> A: `optimizePackageImports: ["@heroui/react"]` + Turbopack for `next dev`
+> (`dev:webpack` fallback kept; `build` stays `--webpack` so Serwist precaching is
+> untouched). Measured: /plans first-compile 8.4s → 0.67s, warm 30ms.
+> B: 60s single-flight reseller-balance cache (+10s negative cache) in the adapter;
+> `/api/plans` catalog (plans + provider billing) in `unstable_cache` 5 min tagged
+> `plans`, purged instantly via `updateTag` on plan/provider saves; `Cache-Control:
+> public, s-maxage=60, stale-while-revalidate=300` on the response; SWR tuned
+> (catalog/dashboard 60s dedupe, no focus refetch; approvals queue polls 15s guarded);
+> approval now live-checks reseller stock (INSUFFICIENT_STOCK aborts to PENDING).
+> Verified: repeated /api/plans hits ~5ms.
 
 ## PHASE 10: Admin Operations Backend
 

@@ -55,7 +55,7 @@ export const auth = betterAuth({
         before: async (user) => {
           // Check if this is the Master Admin email bootstrapping
           const isMasterAdmin = user.email === env.MASTER_ADMIN_EMAIL;
-          
+
           return {
             data: {
               ...user,
@@ -67,6 +67,19 @@ export const auth = betterAuth({
           }
         }
       }
-    }
-  }
+    },
+    session: {
+      create: {
+        // Fail-closed: DEACTIVATED accounts can never obtain a session (01 §7.2).
+        // SUSPENDED users may still log in (read-only quarantine, enforced per-route).
+        before: async (session) => {
+          const status = (session.user as unknown as { status?: string })?.status;
+          if (status === "DEACTIVATED") {
+            throw new Error("Account deactivated.");
+          }
+          return { data: session };
+        },
+      },
+    },
+  },
 });

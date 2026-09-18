@@ -5,9 +5,13 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@heroui/react";
 import { useState, useEffect } from "react";
 import { CopyBox } from "@/components/ui/CopyBox";
+import { notifyError, notifySuccess } from "@/components/ui/ToastProvider";
 
-// Helper function to simulate the engine logic on the client for instant feedback
-// (This exactly mirrors src/lib/proxy/engine.ts)
+// Instant client preview of the targeting suffix (display parts ONLY —
+// the full proxy string with secret is composed server-side via the
+// adapter's buildTargetingSuffix() on explicit Generate/Copy, 00 §6).
+// Canonical grammar 03 §6; gateway table 03 §8. No `asn.` suffix: ASN keys
+// were not verified — exclude_asn travels via set-default-pool-parameters.
 function buildCurlCommand(params: any) {
   let username = params.login;
   const segments: string[] = [];
@@ -18,22 +22,29 @@ function buildCurlCommand(params: any) {
     if (params.city) segments.push(`city.${params.city.toLowerCase()}`);
     if (params.zip) segments.push(`zip.${params.zip.toLowerCase()}`);
   }
-  
-  if (params.asn) segments.push(`asn.${params.asn.toLowerCase()}`);
+
   if (params.mode === "STICKY" && params.sessionId) segments.push(`sessid.${params.sessionId}`);
 
   if (segments.length > 0) username += "__" + segments.join(";");
 
-  const port = params.protocol === "SOCKS5" ? "9000" : "8000";
+  const port =
+    params.mode === "STICKY" && params.stickyPort
+      ? params.stickyPort
+      : params.protocol === "SOCKS5"
+        ? "824"
+        : "823";
   const scheme = params.protocol.toLowerCase();
-  
+
   return `curl -x ${scheme}://${username}:${params.password}@gw.dataimpulse.com:${port} https://ipinfo.io`;
 }
 
 export default function ProxyConfigPage() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [revealed, setRevealed] = useState<{ login: string; password: string } | null>(null);
+  const [revealing, setRevealing] = useState(false);
   const [config, setConfig] = useState({
-    login: "dataimpulse_user",
-    password: "proxy_password_123",
     protocol: "HTTP",
     mode: "ROTATING",
     country: "",
@@ -44,6 +55,40 @@ export default function ProxyConfigPage() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  const active = accounts[activeIdx] ?? null;
+
+  useEffect(() => {
+    fetch("/api/proxy/accounts")
+      .then((r) => r.json())
+      .then((d) => setAccounts(d.accounts ?? []))
+      .catch(() => setAccounts([]))
+      .finally(() => setLoadingAccounts(false));
+  }, []);
+
+  // Load the saved config whenever the pool tab changes.
+  useEffect(() => {
+    if (!active) return;
+    setRevealed(null);
+    setSaveMsg(null);
+    fetch(`/api/proxy/config?proxyAccountId=${active._id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.config) {
+          setConfig({
+            protocol: d.config.protocol ?? "HTTP",
+            mode: d.config.mode ?? "ROTATING",
+            country: d.config.country ?? "",
+            state: d.config.state ?? "",
+            city: d.config.city ?? "",
+            asn: "",
+            sessionId: "",
+          });
+        }
+      })
+      .catch(() => {});
+  }, [active?._id]);
 
   // Cascading updates
   const updateConfig = (key: string, value: string) => {
@@ -63,23 +108,54 @@ export default function ProxyConfigPage() {
   };
 
   const handleSave = async () => {
+    if (!active) return;
     setIsSaving(true);
+    setSaveMsg(null);
     try {
-      // Mock proxyAccountId for Phase 8 testing (Phase 9 will inject real IDs)
-      await fetch("/api/proxy/config", {
+      const res = await fetch("/api/proxy/config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...config, proxyAccountId: "test-proxy-id-01" })
+        body: JSON.stringify({ ...config, proxyAccountId: active._id })
       });
-      // Allow visual feedback
-      setTimeout(() => setIsSaving(false), 500);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed.");
+      setSaveMsg("Configuration saved.");
+      notifySuccess("Configuration saved");
     } catch (e) {
-      console.error(e);
+      const message = e instanceof Error ? e.message : "Save failed.";
+      setSaveMsg(message);
+      notifyError("Save failed", message);
+    } finally {
       setIsSaving(false);
     }
   };
 
-  const curlCommand = buildCurlCommand(config);
+  const handleReveal = async () => {
+    if (!active) return;
+    setRevealing(true);
+    try {
+      const res = await fetch("/api/proxy/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proxyAccountId: active._id })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Reveal failed.");
+      setRevealed({ login: data.login, password: data.password });
+    } catch (e) {
+      notifyError("Reveal failed", e instanceof Error ? e.message : "Reveal failed.");
+    } finally {
+      setRevealing(false);
+    }
+  };
+
+  const login = revealed?.login ?? active?.login ?? "";
+  const curlCommand = revealed
+    ? buildCurlCommand({ ...config, login, password: revealed.password } as any)
+    : "";
+  const displayUsername = login
+    ? buildCurlCommand({ ...config, login, password: "x" } as any).match(/:\/\/(.+?):/)?.[1] || login
+    : "";
 
   return (
     <CustomerShell activePath="/user/proxy-config">
@@ -88,8 +164,30 @@ export default function ProxyConfigPage() {
         <p>Configure your targeting and generate connection strings.</p>
       </div>
 
+      {loadingAccounts ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : accounts.length === 0 ? (
+        <GlassCard>
+          <p className="text-sm text-zinc-400">No proxy pools yet — buy bandwidth first, then configure it here.</p>
+        </GlassCard>
+      ) : (
       <div>
-        
+        {/* Pool tabs — entitled pools only (backend still 403s the rest) */}
+        <div className="flex gap-2 mb-4 overflow-x-auto">
+          {accounts.map((a: any, i: number) => (
+            <button
+              key={a._id}
+              onClick={() => setActiveIdx(i)}
+              disabled={a.status !== "ACTIVE"}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${i === activeIdx ? "bg-cyan-500/20 text-cyan-300" : "bg-white/5 text-zinc-400"} disabled:opacity-40`}
+            >
+              {a.proxyType}{a.status !== "ACTIVE" ? " (locked)" : ""}
+            </button>
+          ))}
+        </div>
+
         {/* Left Column: Configuration Controls */}
         <div>
           <GlassCard>
@@ -192,13 +290,14 @@ export default function ProxyConfigPage() {
             </div>
 
             <div>
-              <Button 
-                onPress={handleSave} 
-                isDisabled={isSaving}
-               
+              <Button
+                onPress={handleSave}
+                isDisabled={isSaving || !active}
+
               >
                 {isSaving ? "Saving..." : "Save Configuration"}
               </Button>
+              {saveMsg && <p className="text-xs text-zinc-400 mt-2">{saveMsg}</p>}
             </div>
           </GlassCard>
         </div>
@@ -225,7 +324,7 @@ export default function ProxyConfigPage() {
               <div>
                 <div>
                   <label>Port</label>
-                  <CopyBox text={config.protocol === "SOCKS5" ? "9000" : "8000"} />
+                  <CopyBox text={config.mode === "STICKY" && (config as any).stickyPort ? String((config as any).stickyPort) : config.protocol === "SOCKS5" ? "824" : "823"} />
                 </div>
                 <div>
                   <label>Protocol</label>
@@ -235,38 +334,56 @@ export default function ProxyConfigPage() {
 
               <div>
                 <label>Username</label>
-                <CopyBox 
-                  text={buildCurlCommand(config).match(/:\/\/(.+?):/)?.[1] || config.login} 
-                  
+                <CopyBox
+                  text={displayUsername || login}
+
                 />
               </div>
 
               <div>
-                <label>Password</label>
-                <CopyBox text={config.password} isPassword />
+                <label>Password (masked — reveal once to use)</label>
+                {revealed ? (
+                  <CopyBox text={revealed.password} isPassword />
+                ) : (
+                  <Button
+                    onPress={handleReveal}
+                    isDisabled={revealing || !active}
+                    className="w-full bg-white/5 hover:bg-white/10 text-white font-bold text-xs"
+                  >
+                    {revealing ? "Revealing…" : "Reveal password"}
+                  </Button>
+                )}
               </div>
             </div>
 
             <div>
               <label>Quick Test (cURL)</label>
+              {revealed ? (
               <div>
-                <textarea 
-                  readOnly 
+                <textarea
+                  readOnly
                   value={curlCommand}
-                 
+
                 />
-                <button 
-                  onClick={() => navigator.clipboard.writeText(curlCommand)}
-                 
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(curlCommand);
+                    notifySuccess("Copied to clipboard");
+                  }}
+
                 >
                   COPY
                 </button>
               </div>
+              ) : (
+                <p className="text-xs text-zinc-500">Reveal the password to generate the full connection string.</p>
+              )}
             </div>
-            
+
           </GlassCard>
         </div>
       </div>
+      )}
     </CustomerShell>
   );
 }

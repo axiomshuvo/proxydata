@@ -46,7 +46,7 @@ export function Sidebar({
 
   return (
     <>
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-white/5 p-4 md:flex min-h-[calc(100vh-4rem)] sticky top-16">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-white/5 p-4 lg:flex min-h-[calc(100vh-4rem)] sticky top-16">
         
         {/* User Card at top of Desktop Sidebar */}
         <div className="mb-8 flex flex-col gap-3 rounded-xl border border-white/5 bg-zinc-900/50 p-4 relative overflow-hidden">
@@ -99,7 +99,7 @@ export function Sidebar({
         </div>
       </aside>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-zinc-950/95 backdrop-blur-md md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-zinc-950/95 backdrop-blur-md lg:hidden">
         <div className="grid grid-cols-4">
           {PRIMARY.map((item) => (
             <Link key={item.href} href={item.href} className={`flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${activePath === item.href ? "text-cyan-400" : "text-zinc-500"}`}>

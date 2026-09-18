@@ -6,9 +6,39 @@ import { Button } from "@/components/ui/Button";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Navbar } from "@/components/ui/Navbar";
 import { TextInput } from "@/components/ui/TextInput";
+import { useState } from "react";
+import { notifyError, notifySuccess } from "@/components/ui/ToastProvider";
 
-// Phase 3A - U5: /contact (mock — throttled + CAPTCHA enforced server-side later).
 export default function ContactPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSending(true);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, message }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Send failed.");
+      setSent(true);
+      setName("");
+      setEmail("");
+      setMessage("");
+      notifySuccess("Message sent", "We reply within 24 hours on business days.");
+    } catch (err) {
+      notifyError("Send failed", err instanceof Error ? err.message : "Send failed.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
       <Navbar />
@@ -18,12 +48,20 @@ export default function ContactPage() {
           {siteContent.company.supportEmail} — we reply within 24 hours on business days.
         </p>
         <GlassCard className="mt-6 rounded-2xl p-6">
-          <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-            <TextInput label="Name" placeholder="Your name" isRequired />
-            <TextInput label="Email" placeholder="you@example.com" type="email" isRequired />
-            <TextInput label="Message" placeholder="How can we help?" isRequired />
-            <Button className="w-full">Send message</Button>
-          </form>
+          {sent ? (
+            <p className="text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+              Received — we&apos;ll get back to you by email shortly.
+            </p>
+          ) : (
+            <form className="space-y-4" onSubmit={handleSend}>
+              <TextInput label="Name" placeholder="Your name" isRequired value={name} onChange={(e) => setName(e.target.value)} />
+              <TextInput label="Email" placeholder="you@example.com" type="email" isRequired value={email} onChange={(e) => setEmail(e.target.value)} />
+              <TextInput label="Message" placeholder="How can we help?" isRequired value={message} onChange={(e) => setMessage(e.target.value)} />
+              <Button className="w-full" type="submit" isDisabled={sending}>
+                {sending ? "Sending…" : "Send message"}
+              </Button>
+            </form>
+          )}
           <p className="mt-3 text-xs text-zinc-500">
             Limited to 3 messages per hour per visitor. Never paste passwords or full proxy strings here.
           </p>

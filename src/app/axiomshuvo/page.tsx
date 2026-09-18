@@ -3,16 +3,19 @@
 import { AdminShell } from "@/components/layout/AdminShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@heroui/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getAdminStats, getPendingTransactions, approveTransaction } from "@/app/actions/admin";
+import { notifyError, notifySuccess } from "@/components/ui/ToastProvider";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [pendingTx, setPendingTx] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const approvingRef = useRef<string | null>(null);
+  approvingRef.current = approvingId;
 
-  const loadData = async () => {
+  const loadData = async (quiet = false) => {
     try {
       const [statsData, txData] = await Promise.all([
         getAdminStats(),
@@ -22,7 +25,7 @@ export default function AdminDashboard() {
       setPendingTx(txData);
     } catch (e) {
       console.error(e);
-      alert("Failed to load admin data (Are you definitely an admin?)");
+      if (!quiet) notifyError("Failed to load admin data", "Are you definitely an admin?");
     } finally {
       setLoading(false);
     }
@@ -30,18 +33,25 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadData();
+    // Live queue: refresh every 15s, paused while an approval is in flight
+    // or the tab is hidden (money decisions deserve fresh data, not storms).
+    const t = setInterval(() => {
+      if (!approvingRef.current && !document.hidden) loadData(true);
+    }, 15000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleApprove = async (txId: string) => {
     if (!confirm("Are you sure you received the payment? This will grant live proxy bandwidth.")) return;
-    
+
     setApprovingId(txId);
     try {
       await approveTransaction(txId);
-      alert("Transaction approved! Bandwidth allocated successfully.");
+      notifySuccess("Transaction approved", "Bandwidth allocation started.");
       loadData(); // Refresh UI
     } catch (e: any) {
-      alert("Error: " + e.message);
+      notifyError("Approval failed", e.message);
     } finally {
       setApprovingId(null);
     }
@@ -109,14 +119,14 @@ export default function AdminDashboard() {
                   <div>
                     <div className="flex items-center gap-3 mb-1">
                       <span className="text-[10px] font-bold bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded uppercase">Pending</span>
-                      <h4 className="text-sm font-bold text-white">{tx.planNameSnapshot}</h4>
+                      <h4 className="text-sm font-bold text-white">{tx.planSnapshot?.name || tx.planNameSnapshot}</h4>
                     </div>
                     <div className="text-xs font-mono text-zinc-500">TxID: {tx._id}</div>
                     <div className="text-xs text-zinc-400 mt-1">User: {tx.userId}</div>
                   </div>
                   
                   <div className="text-right flex flex-col items-end gap-3">
-                    <div className="text-lg font-extrabold text-white">৳{tx.amountTaka}</div>
+                    <div className="text-lg font-extrabold text-white">৳{tx.finalAmountBdt ?? tx.amountTaka}</div>
                     <Button 
                       onPress={() => handleApprove(tx._id)}
                       isDisabled={approvingId === tx._id}

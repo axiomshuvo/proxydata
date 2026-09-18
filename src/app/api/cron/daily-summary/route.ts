@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/db/mongodb";
 import { sendEmail } from "@/lib/email";
 import { env } from "@/lib/env";
+import { logRuntime } from "@/lib/runtime-log";
 
 export async function GET(req: Request) {
   try {
@@ -16,17 +17,17 @@ export async function GET(req: Request) {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const [newUsers, dailyTransactions] = await Promise.all([
-      db.collection("users").countDocuments({ createdAt: { $gte: oneDayAgo } }),
-      db.collection("transactions").find({ 
+      db.collection("user").countDocuments({ createdAt: { $gte: oneDayAgo } }),
+      db.collection("transactions").find({
         createdAt: { $gte: oneDayAgo },
-        status: "COMPLETED",
+        status: "ACTIVE",
         type: "PURCHASE"
       }).toArray()
     ]);
 
-    const dailyRevenue = dailyTransactions.reduce((sum, tx) => sum + (tx.amountTaka || 0), 0);
+    const dailyRevenue = dailyTransactions.reduce((sum, tx) => sum + (tx.finalAmountBdt || 0), 0);
 
-    await sendEmail({
+    const mailed = await sendEmail({
       to: env.MASTER_ADMIN_EMAIL,
       subject: "ProxyData Daily Summary 📊",
       html: `
@@ -39,10 +40,19 @@ export async function GET(req: Request) {
       `
     });
 
+    logRuntime({
+      level: mailed.success ? "INFO" : "ERROR",
+      source: "cron",
+      operation: "DAILY_SUMMARY",
+      status: mailed.success ? "SUCCESS" : "FAILED",
+      message: `Daily summary: ${newUsers} signups, ${dailyTransactions.length} purchases, ৳${dailyRevenue}.`,
+    });
+
     return NextResponse.json({ success: true, revenue: dailyRevenue });
 
   } catch (error) {
     console.error("Cron Error:", error);
+    logRuntime({ level: "ERROR", source: "cron", operation: "DAILY_SUMMARY", status: "FAILED", message: "Daily summary crashed." });
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

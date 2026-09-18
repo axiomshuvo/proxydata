@@ -44,15 +44,22 @@ async function applyIndexes() {
     const db = client.db();
     console.log(`✅ Connected to database: ${db.databaseName}`);
 
-    // 1. USERS
-    console.log("Applying indexes for 'users'...");
-    await db.collection("users").createIndex({ publicUserId: 1 }, { unique: true });
-    await db.collection("users").createIndex({ email: 1 }, { unique: true });
+    // 1. USERS — Better Auth stores identity in `user` (singular) at runtime;
+    // index it (spec 02 §32 names it `users` — cover both, harmless).
+    console.log("Applying indexes for 'user'/'users'...");
+    for (const coll of ["user", "users"]) {
+      await db.collection(coll).createIndex({ publicUserId: 1 }, { unique: true });
+      await db.collection(coll).createIndex({ email: 1 }, { unique: true });
+    }
 
-    // 2. PROXY ACCOUNTS
+    // 2. PROXY ACCOUNTS — one sub-user per (userId, providerId, proxyType), 02 §32.
     console.log("Applying indexes for 'proxy_accounts'...");
     await db.collection("proxy_accounts").createIndex(
-      { userId: 1, providerId: 1, poolType: 1 },
+      { userId: 1, providerId: 1, proxyType: 1 },
+      { unique: true }
+    );
+    await db.collection("proxy_accounts").createIndex(
+      { providerId: 1, providerSubUserId: 1 },
       { unique: true }
     );
 
@@ -60,19 +67,35 @@ async function applyIndexes() {
     console.log("Applying indexes for 'proxy_configurations'...");
     await db.collection("proxy_configurations").createIndex({ proxyAccountId: 1 }, { unique: true });
 
-    // 4. TRANSACTIONS
+    // 4. TRANSACTIONS — 02 §32: unique tx id + user history + sweeper + TrxID replay guard.
     console.log("Applying indexes for 'transactions'...");
     await db.collection("transactions").createIndex(
-      { paymentReference: 1 }, 
+      { transactionId: 1 },
+      { unique: true }
+    );
+    await db.collection("transactions").createIndex({ userId: 1, createdAt: -1 });
+    await db.collection("transactions").createIndex({ status: 1, createdAt: 1 });
+    await db.collection("transactions").createIndex(
+      { paymentReference: 1 },
       { unique: true, sparse: true }
     );
 
-    // 5. COUPON USAGES
-    console.log("Applying indexes for 'coupon_usages'...");
+    // 5. COUPON USAGES + COUPONS (case-insensitive codes need collation at query time;
+    // unique code index here, strength-2 collation applied in app queries per 02 §32).
+    console.log("Applying indexes for 'coupon_usages'/'coupons'...");
     await db.collection("coupon_usages").createIndex(
-      { couponId: 1, transactionId: 1 }, 
+      { couponId: 1, transactionId: 1 },
       { unique: true }
     );
+    await db.collection("coupon_usages").createIndex({ couponId: 1, userId: 1 });
+    await db.collection("coupons").createIndex({ code: 1 }, { unique: true });
+
+    // 5b. REDEEM CODES + AFFILIATE CODES
+    await db.collection("redeem_codes").createIndex({ code: 1 }, { unique: true });
+    await db.collection("redeem_codes").createIndex({ status: 1, validTo: 1 });
+    await db.collection("affiliate_codes").createIndex({ code: 1 }, { unique: true });
+    await db.collection("affiliate_codes").createIndex({ affiliateId: 1, status: 1 });
+    await db.collection("affiliate_codes").createIndex({ affiliateId: 1, createdAt: -1 });
 
     // 6. AFFILIATE REFERRALS
     console.log("Applying indexes for 'affiliate_referrals'...");
@@ -81,26 +104,38 @@ async function applyIndexes() {
       { unique: true }
     );
 
-    // 7. AFFILIATE COMMISSIONS
+    // 7. AFFILIATE COMMISSIONS — one decision per purchase + ledger lookups, 02 §32.
     console.log("Applying indexes for 'affiliate_commissions'...");
     await db.collection("affiliate_commissions").createIndex(
-      { transactionId: 1 }, 
+      { transactionId: 1 },
       { unique: true }
     );
+    await db.collection("affiliate_commissions").createIndex({ affiliateId: 1, status: 1 });
+    await db.collection("affiliate_commissions").createIndex({ affiliateId: 1, accountingPeriod: 1 });
+    await db.collection("affiliate_commissions").createIndex({ referredUserId: 1 });
 
-    // 8. PROVIDER OPERATION LOGS
+    // 8. PROVIDER OPERATION LOGS — idempotent retry key + sweeper, 02 §32.
     console.log("Applying indexes for 'provider_operation_logs'...");
     await db.collection("provider_operation_logs").createIndex(
-      { transactionId: 1, operationType: 1 }, 
+      { transactionId: 1, operationType: 1 },
       { unique: true }
     );
+    await db.collection("provider_operation_logs").createIndex({ status: 1, createdAt: 1 });
 
     // 9. PROVIDER METADATA
     console.log("Applying indexes for 'provider_metadata'...");
     await db.collection("provider_metadata").createIndex(
-      { providerId: 1, poolType: 1, countryCode: 1 }, 
+      { providerId: 1, poolType: 1, countryCode: 1 },
       { unique: true }
     );
+
+    // 10. RUNTIME LOGS — operational noise only: 30-day TTL (free-tier guard).
+    console.log("Applying indexes for 'runtime_logs'...");
+    await db.collection("runtime_logs").createIndex(
+      { createdAt: 1 },
+      { expireAfterSeconds: 30 * 24 * 3600 }
+    );
+    await db.collection("runtime_logs").createIndex({ source: 1, level: 1, createdAt: -1 });
 
     console.log("🎉 ALL PHASE 5 MONGODB INDEXES APPLIED SUCCESSFULLY!");
 

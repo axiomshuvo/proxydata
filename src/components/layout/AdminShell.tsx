@@ -4,7 +4,10 @@ import {
   Bars,
   Bell,
   ChartPie,
+  Ellipsis,
   Gear,
+  Globe,
+  Layers,
   ListCheck,
   Persons,
   Tag,
@@ -37,6 +40,7 @@ export function AdminShell({
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const { data: session } = authClient.useSession();
   const router = useRouter();
@@ -81,8 +85,10 @@ export function AdminShell({
       Icon: ListCheck,
       badge: pendingApprovals,
     },
+    { label: "Plans", href: `${basePath}/plans`, Icon: Layers, badge: 0 },
+    { label: "Providers", href: `${basePath}/providers`, Icon: Globe, badge: 0 },
     { label: "Users", href: `${basePath}/users`, Icon: Persons, badge: 0 },
-    { label: "Coupons", href: `${basePath}/coupons`, Icon: Tag, badge: 0 },
+    { label: "Codes", href: `${basePath}/codes`, Icon: Tag, badge: 0 },
     {
       label: "Affiliates",
       href: `${basePath}/affiliates`,
@@ -107,7 +113,7 @@ export function AdminShell({
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 -ml-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors focus:outline-none"
+              className="lg:hidden p-2 -ml-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors focus:outline-none"
             >
               <Bars width={20} />
             </button>
@@ -248,7 +254,7 @@ export function AdminShell({
 
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
+        <div className="fixed inset-0 z-50 flex lg:hidden">
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={() => setMobileMenuOpen(false)}
@@ -300,11 +306,59 @@ export function AdminShell({
           activePath={activePath}
           pendingApprovals={pendingApprovals}
         />
-        <main className="min-w-0 flex-1 px-4 pt-6 pb-10 sm:px-6">
+        <main className="min-w-0 flex-1 px-4 pt-6 pb-28 sm:px-6 lg:pb-10">
           <h1 className="mb-6 text-2xl font-bold tracking-tight">{title}</h1>
           {children}
         </main>
       </div>
+
+      {/* App-like bottom bar on phones/tablets (desktop uses the sidebar).
+          Overview · Approvals · Plans · More — approvals badge included. */}
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-zinc-950/95 backdrop-blur-md lg:hidden">
+        <div className="grid grid-cols-4">
+          {items.slice(0, 3).map((item) => {
+            const active = activePath === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`relative flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${active ? "text-cyan-400" : "text-zinc-500"}`}
+              >
+                <item.Icon width={22} />
+                {item.label}
+                {item.badge > 0 && (
+                  <span className="absolute top-2 right-1/2 translate-x-5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-black">
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMoreOpen(!moreOpen)}
+            className={`flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${moreOpen ? "text-cyan-400" : "text-zinc-500"}`}
+          >
+            <Ellipsis width={22} />
+            More
+          </button>
+        </div>
+        {moreOpen && (
+          <div className="grid grid-cols-2 gap-2 border-t border-white/10 p-3">
+            {items.slice(3).map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMoreOpen(false)}
+                className="flex min-h-11 items-center gap-2 rounded-xl bg-white/5 px-3 text-sm font-medium text-zinc-300"
+              >
+                <item.Icon width={16} />
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </nav>
     </div>
   );
 }

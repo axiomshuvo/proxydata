@@ -21,8 +21,11 @@ export const UserSchema = z.object({
 // -----------------------------------------------------------------------------
 // 2. PROXY ACCOUNTS COLLECTION
 // -----------------------------------------------------------------------------
-export const ProviderType = z.enum(["DATAIMPULSE", "PROVIDER_B"]);
-export const ProxyType = z.enum(["DATACENTER", "RESIDENTIAL", "MOBILE", "RESIDENTIAL_PREMIUM"]);
+// Provider ID is a plain string per 02 §7/§9 (e.g. "dataimpulse") —
+// never an uppercase enum. Kept as a literal union for Zod safety.
+export const ProviderId = z.enum(["dataimpulse"]);
+export const ProviderType = ProviderId;
+export const ProxyType = z.enum(["RESIDENTIAL", "MOBILE", "DATACENTER", "PREMIUM_RESIDENTIAL"]);
 
 export const ProxyAccountSchema = z.object({
   _id: z.string().optional(),
@@ -158,14 +161,29 @@ export const CouponSchema = z.object({
 // -----------------------------------------------------------------------------
 export const PlanStatus = z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]);
 export const PlanExpiryAction = z.enum(["BLOCK", "BLOCK_AND_RECLAIM"]);
+export const PlanPricingMode = z.enum(["FIXED", "TIERED"]);
+
+// Volume tier: quantity range [minGb, maxGb] (maxGb null = open-ended) sold
+// at pricePerGbBdt per GB. Ranges must start at 1, be contiguous with no
+// gaps/overlaps, and rates must strictly decrease (bulk = cheaper).
+export const PlanTierSchema = z.object({
+  minGb: z.number().int().min(1),
+  maxGb: z.number().int().min(1).nullable(),
+  pricePerGbBdt: z.number().int().min(1),
+});
+export type PlanTier = z.infer<typeof PlanTierSchema>;
 
 export const PlanSchema = z.object({
   _id: z.string().optional(),
-  name: z.string(), // e.g. "5 GB Residential"
+  name: z.string(), // e.g. "5 GB Residential" or "Residential Flex"
   providerId: z.string(), // e.g. "dataimpulse"
   proxyType: ProxyType,
-  bandwidthGb: z.number().int(),
-  retailPriceBdt: z.number().int(), // whole Taka
+  pricingMode: PlanPricingMode.default("FIXED"),
+  // FIXED: exact GB in the bundle. TIERED: ignored (checkout sends quantityGb).
+  bandwidthGb: z.number().int().min(1),
+  retailPriceBdt: z.number().int(), // FIXED bundle price (whole Taka)
+  // TIERED only: volume rate table (validated contiguous + decreasing).
+  tiers: z.array(PlanTierSchema).default([]),
   status: PlanStatus.default("ACTIVE"), // ARCHIVED hides from catalog, keeps history refs
   validityDays: z.number().int().optional(),
   expiryAction: PlanExpiryAction.default("BLOCK"),
@@ -342,11 +360,13 @@ export const AffiliatePayoutSchema = z.object({
 // -----------------------------------------------------------------------------
 // 12. PROVIDER COLLECTIONS (hourly cron; upsert, never full overwrite)
 // -----------------------------------------------------------------------------
+// Upstream pool strings are lowercase per 03 §3-§6 (incl. premium_residential).
+// Internal 4-pool enum (ProxyType) stays UPPER_CASE per 02 §10.
 export const ProviderPoolType = z.enum([
-  "DATACENTER",
-  "RESIDENTIAL",
-  "MOBILE",
-  "PREMIUM_RESIDENTIAL",
+  "datacenter",
+  "residential",
+  "mobile",
+  "premium_residential",
 ]);
 
 export const ProviderMetadataSchema = z.object({
@@ -370,12 +390,29 @@ export const ProviderSyncLogSchema = z.object({
   completedAt: z.date(),
 });
 
+export const ProviderOperationType = z.enum([
+  "ADD_BALANCE",
+  "CREATE_USER",
+  "DROP_BALANCE",
+  "SET_BLOCKED",
+  "DELETE_USER",
+  "RESET_PASSWORD",
+]);
+export const ProviderOperationStatus = z.enum(["PENDING", "SUCCESS", "TIMEOUT", "FAILED"]);
+
 export const ProviderOperationLogSchema = z.object({
   _id: z.string().optional(),
   transactionId: z.string(),
-  operationType: z.string(),
+  operationType: ProviderOperationType,
+  provider: z.literal("dataimpulse").default("dataimpulse"),
+  // Exact payload sent — REDACTED (no passwords/tokens/TrxID-full) per 01 §24.1 rule 6.
+  payload: z.record(z.string(), z.unknown()).optional(),
   redactedPayload: z.record(z.string(), z.unknown()).optional(),
+  preCallBalanceBytes: z.number().int().optional(),
+  response: z.record(z.string(), z.unknown()).optional(),
+  status: ProviderOperationStatus,
   createdAt: z.date(),
+  updatedAt: z.date(),
 });
 
 // -----------------------------------------------------------------------------
@@ -403,6 +440,38 @@ export const SystemSettingsSchema = z.object({
   defaultCommissionPerGbBdt: z.number().default(10),
   minimumOwnerProfitBdt: z.number().default(15),
 });
+
+// -----------------------------------------------------------------------------
+// 15. PROVIDERS REGISTRY (multi-provider foundation, 01 §6/§10)
+// One row per upstream vendor. DataImpulse is pre-registered; future vendors
+// sit as DISABLED ("Coming Soon") until wired. Secrets NEVER live here.
+// -----------------------------------------------------------------------------
+export const ProviderStatus = z.enum(["ACTIVE", "MAINTENANCE", "DISABLED"]);
+
+export const ProviderDocSchema = z.object({
+  _id: z.string().optional(),
+  providerId: z.string(), // e.g. "dataimpulse" — the key everything references
+  name: z.string(), // e.g. "DataImpulse"
+  status: ProviderStatus.default("DISABLED"),
+  // Pools this vendor sells (subset of the 4-pool ProxyType enum).
+  pools: z.array(ProxyType).default([]),
+  // Single wholesale buying cost ৳/GB; per-pool floors derive via coefficients.
+  wholesaleBaseBdt: z.number().int().min(0).default(0),
+  // Billing rule: GB multiplier per pool (DataImpulse ×1/×0.5/×2/×5).
+  // A flat-rate vendor simply uses 1 for every pool it sells.
+  coefficients: z.record(z.string(), z.number()).default({}),
+  // Connection endpoints (adapter reads these; engine defaults match DataImpulse).
+  gateway: z
+    .object({
+      host: z.string().default("gw.dataimpulse.com"),
+      httpPort: z.number().int().default(823),
+      socks5Port: z.number().int().default(824),
+    })
+    .default({ host: "gw.dataimpulse.com", httpPort: 823, socks5Port: 824 }),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+export type ProviderDoc = z.infer<typeof ProviderDocSchema>;
 
 // -----------------------------------------------------------------------------
 // EXPORT TYPES

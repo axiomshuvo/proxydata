@@ -9,7 +9,14 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Turbopack for `next dev` (SW is disabled in dev, so the Serwist webpack
+  // plugin sitting idle is harmless). Production `build` stays on --webpack
+  // where Serwist precaching actually runs.
+  turbopack: {},
+  // Split HeroUI's 72-component barrel per import — faster dev compiles,
+  // smaller client bundles. Zero API change.
   experimental: {
+    optimizePackageImports: ["@heroui/react"],
     serverActions: {
       bodySizeLimit: "2mb",
     },

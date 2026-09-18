@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartPie, Gear, ListCheck, Persons, Tag, Wallet, Terminal } from "@gravity-ui/icons";
+import { ChartPie, Gear, Globe, Layers, ListCheck, Persons, Tag, Wallet, Terminal } from "@gravity-ui/icons";
 import Link from "next/link";
 
 /*
@@ -19,8 +19,10 @@ export function AdminSidebar({ basePath, activePath, pendingApprovals = 0 }: Adm
   const items = [
     { label: "Overview", href: basePath, Icon: ChartPie, badge: 0 },
     { label: "Approvals", href: `${basePath}/approvals`, Icon: ListCheck, badge: pendingApprovals },
+    { label: "Plans", href: `${basePath}/plans`, Icon: Layers, badge: 0 },
+    { label: "Providers", href: `${basePath}/providers`, Icon: Globe, badge: 0 },
     { label: "Users", href: `${basePath}/users`, Icon: Persons, badge: 0 },
-    { label: "Coupons", href: `${basePath}/coupons`, Icon: Tag, badge: 0 },
+    { label: "Codes", href: `${basePath}/codes`, Icon: Tag, badge: 0 },
     { label: "Affiliates", href: `${basePath}/affiliates`, Icon: Persons, badge: 0 },
     { label: "Payouts", href: `${basePath}/payouts`, Icon: Wallet, badge: 0 },
     { label: "System Logs", href: `${basePath}/logs`, Icon: Terminal, badge: 0 },
@@ -28,7 +30,7 @@ export function AdminSidebar({ basePath, activePath, pendingApprovals = 0 }: Adm
   ];
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col gap-1 overflow-x-auto border-r border-white/5 p-4 md:flex">
+    <aside className="hidden w-60 shrink-0 flex-col gap-1 overflow-x-auto border-r border-white/5 p-4 lg:flex">
       {items.map((item) => {
         const active = activePath === item.href;
         return (

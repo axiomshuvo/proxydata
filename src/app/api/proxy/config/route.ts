@@ -22,14 +22,18 @@ export async function GET(req: Request) {
     const client = await clientPromise;
     const db = client.db();
 
-    // Verify ownership of the proxy account
-    const account = await db.collection("proxy_accounts").findOne({ 
+    // Verify ownership
+    const account = await db.collection("proxy_accounts").findOne({
       _id: new ObjectId(proxyAccountId), // Depending on if it's string or ObjectId in Mongo, we assume string or adapt
-      userId: session.user.publicUserId 
+      userId: session.user.publicUserId
     });
 
     if (!account) {
       return NextResponse.json({ error: "Proxy account not found or unauthorized" }, { status: 404 });
+    }
+    // Entitlement gate (01 §18): unentitled/suspended pools reject with 403.
+    if (account.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Proxy account suspended." }, { status: 403 });
     }
 
     const config = await db.collection("proxy_configurations").findOne({ proxyAccountId });
@@ -65,6 +69,16 @@ export async function PUT(req: Request) {
 
     if (!account) {
       return NextResponse.json({ error: "Proxy account not found or unauthorized" }, { status: 404 });
+    }
+    // Entitlement gate (01 §18) + strict allowlists (01 §24.1).
+    if (account.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Proxy account suspended." }, { status: 403 });
+    }
+    if (mode !== undefined && mode !== "ROTATING" && mode !== "STICKY") {
+      return NextResponse.json({ error: "Bad mode." }, { status: 400 });
+    }
+    if (protocol !== undefined && protocol !== "HTTP" && protocol !== "SOCKS5") {
+      return NextResponse.json({ error: "Bad protocol." }, { status: 400 });
     }
 
     // Upsert the configuration

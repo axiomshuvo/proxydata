@@ -2,6 +2,7 @@
 
 import { Check, Copy } from "@gravity-ui/icons";
 import { useState } from "react";
+import { notifyError, notifySuccess } from "./ToastProvider";
 
 export interface CopyBoxProps {
   text: string;
@@ -16,9 +17,11 @@ export function CopyBox({ text, isPassword = false }: CopyBoxProps) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
+      notifySuccess("Copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
+      notifyError("Copy failed", "Your browser blocked clipboard access.");
     }
   };
 

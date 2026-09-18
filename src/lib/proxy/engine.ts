@@ -1,22 +1,39 @@
 // DataImpulse Proxy Generator Engine
-// Translates user preferences into exact grammatical syntax per docs/03 §6
+// Translates user preferences into exact grammatical syntax per docs/03 §6.
+// The full proxy string (with secret) is composed SERVER-SIDE ONLY and
+// returned on explicit user action — never assembled from client-held parts.
+
+export const GATEWAY_HOST = "gw.dataimpulse.com"; // DNS preferred; IP fallback never primary (03 §8)
+export const HTTP_ROTATING_PORT = 823;
+export const SOCKS5_ROTATING_PORT = 824;
 
 export interface ProxyTargetingParams {
   login: string;          // The base DataImpulse sub-user login (e.g. user123)
   password: string;       // The base DataImpulse sub-user password
-  protocol: "HTTP" | "SOCKS5";
-  mode: "ROTATING" | "STICKY";
+  protocol: "http" | "socks5";
+  mode: "rotating" | "sticky";
+  stickyPort?: number;    // 10000–20000 from sticky_range (03 §8)
   country?: string;       // e.g., "us", "gb", "de" (comma separated allowed: "us,gb")
   state?: string;         // e.g., "ca"
   city?: string;          // e.g., "los_angeles"
   zip?: string;           // e.g., "90210"
-  asn?: string;           // e.g., "7018"
-  sessionId?: string;     // Random string for sticky sessions (e.g., "sess123")
+  sessionId?: string;     // Random string for sticky sessions (30-min IP pin)
+  sessionTtl?: number;    // Rotation interval in seconds (sessttl)
 }
 
-// Slug validation to prevent injection/malformed strings
+// Slug validation per 03 §6: ^[a-z0-9-]+$, length-capped (blocks credential
+// injection via crafted city names). Commas survive only as multi-value
+// separators inside an already-split list — never inside a single value.
 function sanitize(val: string): string {
-  return val.trim().toLowerCase().replace(/[^a-z0-9_,]/g, "");
+  return val.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 64);
+}
+
+function sanitizeList(val: string): string {
+  return val
+    .split(",")
+    .map((v) => sanitize(v))
+    .filter(Boolean)
+    .join(",");
 }
 
 /**
@@ -31,28 +48,38 @@ export function buildTargetingSuffix(params: Omit<ProxyTargetingParams, "protoco
 
   // 1. Country (Required for any geo-targeting)
   if (params.country) {
-    segments.push(`cr.${sanitize(params.country)}`);
-    
-    // 2. Sub-geo targeting (Only valid if country exists)
-    if (params.state) {
-      segments.push(`state.${sanitize(params.state)}`);
-    }
-    if (params.city) {
-      segments.push(`city.${sanitize(params.city)}`);
-    }
-    if (params.zip) {
-      segments.push(`zip.${sanitize(params.zip)}`);
+    const countries = sanitizeList(params.country);
+    if (countries) {
+      segments.push(`cr.${countries}`);
+
+      // 2. Sub-geo targeting (Only valid if country exists; 2x billing
+      // except PREMIUM_RESIDENTIAL — surcharge line lives in checkout)
+      if (params.state) {
+        const v = sanitize(params.state);
+        if (v) segments.push(`state.${v}`);
+      }
+      if (params.city) {
+        const v = sanitizeList(params.city);
+        if (v) segments.push(`city.${v}`);
+      }
+      if (params.zip) {
+        const v = sanitize(params.zip);
+        if (v) segments.push(`zip.${v}`);
+      }
     }
   }
 
-  // 3. ASN targeting
-  if (params.asn) {
-    segments.push(`asn.${sanitize(params.asn)}`);
+  // NOTE (03 §6): ASN-include/exclude username keys were NOT directly
+  // verified. `exclude_asn` travels via set-default-pool-parameters
+  // (verified); never emit an `asn.` suffix until sandbox confirms the key.
+  // Sticky session pin (30-min semantics per live docs).
+  if (params.mode === "sticky" && params.sessionId) {
+    const v = sanitize(params.sessionId);
+    if (v) segments.push(`sessid.${v}`);
   }
-
-  // 4. Sticky Session PIN
-  if (params.mode === "STICKY" && params.sessionId) {
-    segments.push(`sessid.${sanitize(params.sessionId)}`);
+  if (params.mode === "sticky" && params.sessionTtl !== undefined) {
+    const ttl = Math.floor(params.sessionTtl);
+    if (Number.isFinite(ttl) && ttl > 0) segments.push(`sessttl.${ttl}`);
   }
 
   if (segments.length > 0) {
@@ -74,18 +101,20 @@ export function buildCredentials(params: ProxyTargetingParams) {
 }
 
 /**
- * Generates the final cURL command string
+ * Generates the final cURL command string.
+ * LOCKED gateway table (03 §8): HTTP rotating :823, SOCKS5 rotating :824,
+ * sticky :10000–20000 (port from sticky_range, never hardcoded per-config).
  */
 export function buildCurlCommand(params: ProxyTargetingParams, targetUrl: string = "https://ipinfo.io"): string {
   const { username, password } = buildCredentials(params);
-  
-  // DataImpulse Default Ports:
-  // HTTP: 8000
-  // SOCKS5: 9000
-  // Note: Sticky ranges (10000+) are usually handled by the provider endpoint, 
-  // but DataImpulse docs state sessid.XYZ is the preferred sticky pinning method on default ports.
-  const port = params.protocol === "SOCKS5" ? "9000" : "8000";
-  const scheme = params.protocol.toLowerCase();
-  
-  return `curl -x ${scheme}://${username}:${password}@gw.dataimpulse.com:${port} ${targetUrl}`;
+
+  const port =
+    params.mode === "sticky" && params.stickyPort
+      ? params.stickyPort
+      : params.protocol === "socks5"
+        ? SOCKS5_ROTATING_PORT
+        : HTTP_ROTATING_PORT;
+  const scheme = params.protocol;
+
+  return `curl -x ${scheme}://${username}:${password}@${GATEWAY_HOST}:${port} ${targetUrl}`;
 }

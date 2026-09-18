@@ -19,11 +19,16 @@ export async function GET(req: Request) {
       .find({ userId: session.user.publicUserId })
       .toArray();
 
-    // Map the mongo _id to strings
-    const formatted = accounts.map(acc => ({
-      ...acc,
-      _id: acc._id.toString()
-    }));
+    // Never expose proxy passwords in list responses (02 §43 — masked by
+    // default, reveal-once audited). Dashboard needs balances/counts only.
+    const formatted = accounts.map(acc => {
+      const { password: _secret, ...safe } = acc as Record<string, unknown>;
+      return {
+        ...safe,
+        _id: acc._id.toString(),
+        hasPassword: true,
+      };
+    });
 
     return NextResponse.json({ accounts: formatted });
 

@@ -2,208 +2,127 @@
 import { AdminShell } from "@/components/layout/AdminShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@heroui/react";
-import { Envelope, Persons, Tags, Wallet } from "@gravity-ui/icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getAffiliatesAdmin, inviteAffiliateByEmail } from "@/app/actions/admin";
+import { notifyError, notifySuccess } from "@/components/ui/ToastProvider";
 
 export default function AdminAffiliatesPage() {
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [commission, setCommission] = useState("15");
-  const [message, setMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [inviteSent, setInviteSent] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSendInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSending(true);
-    setTimeout(() => {
-      setIsSending(false);
-      setInviteSent(true);
-      setInviteEmail("");
-      setMessage("");
-      setTimeout(() => setInviteSent(false), 3000);
-    }, 1500);
+  const refresh = async () => {
+    try {
+      setRows(await getAffiliatesAdmin());
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const handleInvite = async () => {
+    setBusy(true);
+    setNotice(null);
+    setError(null);
+    try {
+      await inviteAffiliateByEmail(email);
+      setNotice(`Partner capability granted to ${email.trim().toLowerCase()}.`);
+      notifySuccess("Partner granted", email.trim().toLowerCase());
+      setEmail("");
+      await refresh();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Invite failed.";
+      setError(message);
+      notifyError("Invite failed", message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const totals = rows.reduce(
+    (s, r) => ({ earned: s.earned + r.earned, paid: s.paid + r.paid, unpaid: s.unpaid + r.unpaid }),
+    { earned: 0, paid: 0, unpaid: 0 },
+  );
 
   return (
     <AdminShell basePath="/axiomshuvo" activePath="/axiomshuvo/affiliates" title="Affiliate Management">
-      <div className="mb-8">
-        <p className="text-sm text-zinc-400">Track network growth, monitor referred users, and invite VIP partners.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {[
+          ["Total Earned", totals.earned],
+          ["Paid Out", totals.paid],
+          ["Unpaid", totals.unpaid],
+        ].map(([label, v]) => (
+          <GlassCard key={label} className="!bg-zinc-900/60 !border-white/10 p-5 rounded-3xl">
+            <p className="text-xs text-zinc-500 font-bold uppercase">{label}</p>
+            <p className="text-2xl font-extrabold text-white mt-1">৳{(v as number).toLocaleString()}</p>
+          </GlassCard>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
-        
-        {/* Left Column: Metrics & Network */}
-        <div className="lg:col-span-8 space-y-8">
-          
-          {/* KPI Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <GlassCard className="!bg-zinc-900/60 p-5 rounded-2xl border-white/5 relative overflow-hidden">
-              <div className="absolute -top-6 -right-6 w-20 h-20 bg-blue-500/10 rounded-full blur-xl"></div>
-              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-2">
-                <Persons width={14} className="text-blue-400" />
-                Total Affiliates
-              </p>
-              <p className="text-3xl font-bold text-white mt-2 font-mono">14</p>
-            </GlassCard>
+      {notice && <p className="text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 mb-4">{notice}</p>}
+      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">{error}</p>}
 
-            <GlassCard className="!bg-zinc-900/60 p-5 rounded-2xl border-white/5 relative overflow-hidden">
-              <div className="absolute -top-6 -right-6 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl"></div>
-              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-2">
-                <Wallet width={14} className="text-emerald-400" />
-                Total Commissions
-              </p>
-              <p className="text-3xl font-bold text-white mt-2 font-mono">৳4,500</p>
-            </GlassCard>
+      <GlassCard className="!bg-zinc-900/60 !border-white/10 p-6 rounded-3xl mb-6">
+        <h3 className="font-bold text-white mb-1">Invite partner</h3>
+        <p className="text-xs text-zinc-500 mb-4">Account must already exist (they register first). Grants the invite-only capability + opens their dashboard.</p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="partner@example.com"
+            className="custom-input flex-1"
+          />
+          <Button onClick={handleInvite} isDisabled={busy || !email.includes("@")} className="bg-cyan-600 text-white font-bold rounded-xl px-6">
+            {busy ? "Granting…" : "Grant access"}
+          </Button>
+        </div>
+      </GlassCard>
 
-            <GlassCard className="!bg-zinc-900/60 p-5 rounded-2xl border-white/5 relative overflow-hidden border-b-2 !border-b-amber-500">
-              <div className="absolute -top-6 -right-6 w-20 h-20 bg-amber-500/10 rounded-full blur-xl"></div>
-              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-2">
-                <Tags width={14} className="text-amber-400" />
-                Pending Payouts
-              </p>
-              <p className="text-3xl font-bold text-amber-400 mt-2 font-mono">৳1,200</p>
-            </GlassCard>
-          </div>
-
-          {/* Affiliate Table */}
-          <GlassCard className="!bg-zinc-900/60 p-6 rounded-2xl border-white/5 overflow-x-auto shadow-xl">
-            <h2 className="text-xs font-bold text-white mb-4 uppercase tracking-widest">Active Partner Network</h2>
-            <table className="w-full text-left text-sm text-zinc-300 min-w-[650px]">
+      <GlassCard className="!bg-zinc-900/60 !border-white/10 rounded-3xl overflow-hidden">
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <table className="w-full text-sm min-w-[680px]">
               <thead>
-                <tr className="border-b border-white/10 text-zinc-500 uppercase text-[10px] tracking-wider">
-                  <th className="pb-3 font-semibold">Affiliate</th>
-                  <th className="pb-3 font-semibold">Invite Code</th>
-                  <th className="pb-3 font-semibold text-center">Rate</th>
-                  <th className="pb-3 font-semibold text-center">Referrals</th>
-                  <th className="pb-3 font-semibold text-right">Total Earned</th>
-                  <th className="pb-3 font-semibold text-right">Action</th>
+                <tr className="text-left text-[11px] uppercase tracking-wider text-zinc-500 border-b border-white/5">
+                  <th className="px-5 py-3">Partner</th>
+                  <th className="px-5 py-3">Active codes</th>
+                  <th className="px-5 py-3 text-right">Referrals</th>
+                  <th className="px-5 py-3 text-right">Earned</th>
+                  <th className="px-5 py-3 text-right">Unpaid</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 font-bold border border-cyan-500/30 flex items-center justify-center text-xs">YT</div>
-                      <div>
-                        <p className="font-bold text-white">influencer@youtube.com</p>
-                        <p className="text-[10px] text-amber-400 font-bold">VIP PARTNER</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 font-mono font-bold text-cyan-400 text-xs">YOUTUBE24</td>
-                  <td className="py-4 text-center"><span className="px-2 py-1 bg-white/5 rounded text-white text-xs font-bold border border-white/10">20%</span></td>
-                  <td className="py-4 text-center font-bold text-white">45</td>
-                  <td className="py-4 text-right text-emerald-400 font-bold">৳3,500</td>
-                  <td className="py-4 text-right">
-                    <button className="px-3 py-1.5 bg-white/5 text-white font-bold text-[10px] uppercase rounded hover:bg-white/10 border border-white/10 transition-colors">View Tree</button>
-                  </td>
-                </tr>
-                <tr className="hover:bg-white/5 transition-colors">
-                  <td className="py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-purple-500/10 text-purple-400 font-bold border border-purple-500/30 flex items-center justify-center text-xs">U9</div>
-                      <div>
-                        <p className="font-bold text-zinc-300">user99@gmail.com</p>
-                        <p className="text-[10px] text-zinc-500 font-bold">STANDARD</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 font-mono font-bold text-zinc-400 text-xs">PX-99A1B2</td>
-                  <td className="py-4 text-center"><span className="px-2 py-1 bg-white/5 rounded text-zinc-400 text-xs font-bold border border-white/5">10%</span></td>
-                  <td className="py-4 text-center font-bold text-zinc-300">2</td>
-                  <td className="py-4 text-right text-emerald-400 font-bold opacity-80">৳150</td>
-                  <td className="py-4 text-right">
-                    <button className="px-3 py-1.5 bg-white/5 text-white font-bold text-[10px] uppercase rounded hover:bg-white/10 border border-white/10 transition-colors">View Tree</button>
-                  </td>
-                </tr>
+                {rows.map((r) => (
+                  <tr key={r._id} className="border-b border-white/5 last:border-0">
+                    <td className="px-5 py-3">
+                      <div className="font-bold text-white text-sm">{r.email}</div>
+                      <div className="font-mono text-[11px] text-zinc-500">{r.userId}</div>
+                    </td>
+                    <td className="px-5 py-3 font-mono text-xs text-cyan-400">{r.activeCodes.join(", ") || "—"}</td>
+                    <td className="px-5 py-3 text-right text-sm">{r.referrals}</td>
+                    <td className="px-5 py-3 text-right text-sm font-bold text-white">৳{r.earned.toLocaleString()}</td>
+                    <td className="px-5 py-3 text-right text-sm font-bold text-amber-400">৳{r.unpaid.toLocaleString()}</td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr><td colSpan={5} className="px-5 py-10 text-center text-zinc-500 text-sm">No partners yet — invite one above.</td></tr>
+                )}
               </tbody>
             </table>
-          </GlassCard>
+          )}
         </div>
-
-        {/* Right Column: VIP Mail Invitation Form */}
-        <div className="lg:col-span-4">
-          <GlassCard className={`!bg-zinc-900/60 p-6 rounded-2xl border transition-all duration-300 ${inviteSent ? 'border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.1)]' : 'border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.05)]'}`}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${inviteSent ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'}`}>
-                <Envelope width={18} />
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-sm">Send VIP Invitation</h3>
-                <p className="text-[10px] text-zinc-400 uppercase tracking-widest">Mail Affiliate Offer</p>
-              </div>
-            </div>
-
-            {inviteSent ? (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-6 text-center animate-in zoom-in-95">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                </div>
-                <h4 className="font-bold text-emerald-400 mb-1">Invitation Sent!</h4>
-                <p className="text-xs text-emerald-400/80">The VIP offer has been emailed to the prospect.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSendInvite} className="space-y-4 animate-in fade-in">
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 mb-1.5 uppercase">Prospect Email Address</label>
-                  <input 
-                    type="email" 
-                    required
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full bg-zinc-950 border border-white/10 text-white rounded-lg px-4 py-2.5 text-sm focus:border-cyan-500 focus:outline-none transition-colors" 
-                    placeholder="influencer@example.com" 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 mb-1.5 uppercase">Custom Commission Rate</label>
-                  <div className="relative">
-                    <input 
-                      type="number" 
-                      required
-                      value={commission}
-                      onChange={(e) => setCommission(e.target.value)}
-                      className="w-full bg-zinc-950 border border-white/10 text-white font-bold rounded-lg pl-4 pr-8 py-2.5 text-sm focus:border-cyan-500 focus:outline-none transition-colors" 
-                    />
-                    <span className="absolute right-3 top-2.5 text-zinc-500 font-bold">%</span>
-                  </div>
-                  <p className="text-[10px] text-cyan-500/70 mt-1.5">Standard users receive 10% by default.</p>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 mb-1.5 uppercase">Personalized Message (Optional)</label>
-                  <textarea 
-                    rows={3}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="w-full bg-zinc-950 border border-white/10 text-zinc-300 rounded-lg px-4 py-3 text-xs focus:border-cyan-500 focus:outline-none transition-colors resize-none" 
-                    placeholder="Hi! We love your content and want to offer you an exclusive partner rate..."
-                  ></textarea>
-                </div>
-
-                <div className="pt-2">
-                  <Button 
-                    type="submit" 
-                    isDisabled={isSending || !inviteEmail}
-                    className={`w-full py-3 font-bold rounded-lg text-sm transition-all flex items-center justify-center gap-2 ${isSending ? "bg-cyan-600/50 text-white/50 cursor-not-allowed" : "bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"}`}
-                  >
-                    {isSending ? (
-                      "Sending Mail..."
-                    ) : (
-                      <>
-                        <Envelope width={16} />
-                        Dispatch VIP Offer
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </GlassCard>
-        </div>
-
-      </div>
+      </GlassCard>
     </AdminShell>
   );
 }

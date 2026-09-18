@@ -5,6 +5,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@heroui/react";
 import Link from "next/link";
 import useSWR from "swr";
+import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 
 // Standard SWR fetcher
@@ -13,12 +14,30 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function UserDashboard() {
   // 1. Fetch Live User Session
   const { data: session, isPending } = authClient.useSession();
+
+  // Bind a pending referral once (OAuth round-trip stores it pre-redirect).
+  useEffect(() => {
+    const ref = sessionStorage.getItem("pending_ref");
+    if (!ref || !session?.user) return;
+    fetch("/api/affiliate/attribution", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: ref }),
+    }).finally(() => sessionStorage.removeItem("pending_ref"));
+  }, [session?.user]);
   
-  // 2. Fetch Live Proxy Accounts
-  const { data: proxyData, isLoading: proxiesLoading } = useSWR("/api/proxy/accounts", fetcher);
-  
+  // 2. Fetch Live Proxy Accounts — balances are display data: share one
+  // fetch/min/tab, no storm on window focus.
+  const { data: proxyData, isLoading: proxiesLoading } = useSWR("/api/proxy/accounts", fetcher, {
+    dedupingInterval: 60000,
+    revalidateOnFocus: false,
+  });
+
   // 3. Fetch Live Transactions
-  const { data: txData, isLoading: txLoading } = useSWR("/api/transactions", fetcher);
+  const { data: txData, isLoading: txLoading } = useSWR("/api/transactions", fetcher, {
+    dedupingInterval: 30000,
+    revalidateOnFocus: false,
+  });
 
   // Loading state
   if (isPending || proxiesLoading || txLoading) {
@@ -35,8 +54,10 @@ export default function UserDashboard() {
   const accounts = proxyData?.accounts || [];
   const transactions = txData?.transactions || [];
 
-  // Calculate live stats
-  const totalGb = accounts.reduce((acc: number, curr: any) => acc + (curr.bandwidthBalanceBytes || 0), 0) / (1024 ** 3);
+  // Calculate live stats — spec fields first, legacy rows fall back (02 §9).
+  const bytesOf = (acc: any) =>
+    acc.cachedRemainingBytes ?? acc.bandwidthBalanceBytes ?? 0;
+  const totalGb = accounts.reduce((acc: number, curr: any) => acc + bytesOf(curr), 0) / 1073741824;
   const activeProxiesCount = accounts.length;
   
   // Get latest 5 transactions for the table
@@ -79,7 +100,7 @@ export default function UserDashboard() {
             <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Total Spent</h3>
             <div className="flex items-baseline gap-2">
               <span className="text-4xl font-extrabold text-white">
-                ৳{transactions.reduce((sum: number, tx: any) => sum + (tx.status === "COMPLETED" ? tx.amountTaka || 0 : 0), 0)}
+                ৳{transactions.reduce((sum: number, tx: any) => sum + (tx.status === "ACTIVE" ? (tx.finalAmountBdt ?? tx.amountTaka ?? 0) : 0), 0)}
               </span>
             </div>
             <div className="mt-4 flex items-center justify-between text-xs font-semibold text-emerald-400">
@@ -116,7 +137,7 @@ export default function UserDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-extrabold text-white">{((acc.bandwidthBalanceBytes || 0) / (1024 ** 3)).toFixed(2)} GB</div>
+                      <div className="text-sm font-extrabold text-white">{(((acc.cachedRemainingBytes ?? acc.bandwidthBalanceBytes ?? 0)) / 1073741824).toFixed(2)} GB</div>
                       <div className="text-xs font-semibold text-zinc-500">Remaining</div>
                     </div>
                   </div>
@@ -138,13 +159,13 @@ export default function UserDashboard() {
                 recentTx.map((tx: any) => (
                   <div key={tx._id} className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-xs font-bold text-white">{tx.planNameSnapshot || "Purchase"}</h4>
+                      <h4 className="text-xs font-bold text-white">{tx.planSnapshot?.name || tx.planNameSnapshot || "Purchase"}</h4>
                       <p className="text-[10px] font-semibold text-zinc-500">{new Date(tx.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs font-bold text-white">৳{tx.amountTaka}</div>
+                      <div className="text-xs font-bold text-white">৳{tx.finalAmountBdt ?? tx.amountTaka}</div>
                       <div className={`text-[10px] font-bold ${
-                        tx.status === 'COMPLETED' ? 'text-emerald-400' : 
+                        tx.status === 'ACTIVE' ? 'text-emerald-400' :
                         tx.status === 'PENDING' ? 'text-amber-400' : 'text-red-400'
                       }`}>
                         {tx.status}

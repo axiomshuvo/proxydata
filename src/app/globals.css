@@ -112,3 +112,18 @@ body {
 .copy-input button:hover {
   background: rgba(6, 182, 212, 0.2);
 }
+
+/*
+  Tailwind v4 reset makes <button> cursor: default.
+  Restore the pointer on everything clickable (except disabled),
+  so buttons/menus/tabs feel right on touch + desktop.
+*/
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}

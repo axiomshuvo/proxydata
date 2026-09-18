@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import {
   Button as HeroUIButton,
   type ButtonProps as HeroUIButtonProps,

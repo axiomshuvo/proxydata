@@ -31,6 +31,8 @@ export function Footer() {
       <div className="border-t border-white/5 py-4 text-center text-xs text-zinc-600">
         © 2026 ProxyData. All rights reserved.
       </div>
+      {/* Spacer so the fixed app-like bottom bar never covers footer content on small screens */}
+      <div className="h-[72px] lg:hidden" />
     </footer>
   );
 }
