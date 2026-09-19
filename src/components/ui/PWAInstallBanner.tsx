@@ -55,6 +55,8 @@ export function PWAInstallBanner() {
           src="/icon-192x192.png"
           alt=""
           aria-hidden
+          width={32}
+          height={32}
           className="h-8 w-8 shrink-0 rounded-lg"
         />
         <p className="min-w-0 flex-1 truncate text-xs text-zinc-300 sm:text-sm">

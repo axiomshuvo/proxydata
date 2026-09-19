@@ -106,13 +106,21 @@ export default function PlansPage() {
     return json;
   };
 
+  // Mount gate (same SSR/hydration rationale as public /plans): the
+  // localStorage cache is browser-only, so force the loading state until
+  // mount to keep server and first client render identical.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { data, isLoading: swrLoading } = useSWR("/api/plans", customFetcher, {
     fallbackData: localCache,
     dedupingInterval: 60000,
     revalidateOnFocus: false,
   });
 
-  const isLoading = swrLoading && !data;
+  const isLoading = (swrLoading && !data) || !mounted;
   const [buyingId, setBuyingId] = useState<string | null>(null);
   const [checkoutResult, setCheckoutResult] = useState<any>(null);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
@@ -199,7 +207,7 @@ export default function PlansPage() {
                   }`}
                 >
                   {prov.toLowerCase() === "dataimpulse" ? (
-                    <img src="/providers/dataimpulse-light.webp" alt="DataImpulse" className={`h-6 transition-all ${selectedProvider !== prov ? "opacity-40 grayscale" : "drop-shadow-soft"}`} />
+                    <img src="/providers/dataimpulse-light.webp" alt="DataImpulse" width={988} height={201} className={`h-6 w-auto transition-all ${selectedProvider !== prov ? "opacity-40 grayscale" : "drop-shadow-soft"}`} />
                   ) : (
                     prov
                   )}

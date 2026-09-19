@@ -55,7 +55,7 @@ export function Sidebar({
           
           <div className="flex items-center gap-3">
             {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="h-10 w-10 rounded-full object-cover border border-white/10 relative z-10 shadow-lg" />
+              <img src={avatarUrl} alt="Avatar" width={40} height={40} className="h-10 w-10 rounded-full object-cover border border-white/10 relative z-10 shadow-lg" />
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500/15 text-sm font-bold text-cyan-400 relative z-10 shadow-lg">
                 {userName?.[0] || 'U'}

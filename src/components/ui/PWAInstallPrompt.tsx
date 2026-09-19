@@ -94,7 +94,7 @@ export function PWAInstallPrompt() {
         {/* Swipe handle — signals the sheet can be pulled down to dismiss. */}
         <div aria-hidden className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" />
         <div className="flex items-center gap-3">
-          <img src="/icon-192x192.png" alt="ProxyData" className="h-12 w-12 rounded-2xl" />
+          <img src="/icon-192x192.png" alt="ProxyData" width={48} height={48} className="h-12 w-12 rounded-2xl" />
           <div className="flex-1">
             <p className="font-bold text-white text-sm">Install ProxyData</p>
             <p className="text-xs text-zinc-400 mt-0.5">

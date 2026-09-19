@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Button, Spinner, Chip } from "@heroui/react";
 import useSWR from "swr";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Navbar } from "@/components/ui/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { PlanExplorer } from "@/components/ui/PlanExplorer";
@@ -29,13 +29,22 @@ export default function PublicPlansPage() {
     return json;
   };
 
+  // Mount gate: localStorage cache exists only in the browser, so the
+  // server always renders the loading state. Without this, SSR emits the
+  // empty/restocking UI while hydration wants the spinner → hydration
+  // bailout (full client re-render, TTI/FID hit on every catalog visit).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { data, isLoading: swrLoading } = useSWR("/api/plans", customFetcher, {
     fallbackData: localCache,
     dedupingInterval: 60000,
     revalidateOnFocus: false,
   });
 
-  const isLoading = swrLoading && !data;
+  const isLoading = (swrLoading && !data) || !mounted;
   
   const allPlans = (data?.plans || []).filter((p: any) => !p.outOfStock);
   
@@ -91,7 +100,7 @@ export default function PublicPlansPage() {
                     <div className="flex flex-col items-center gap-4 relative z-10">
                       {providerId.toLowerCase() === "dataimpulse" ? (
                         <div className="flex items-center gap-3">
-                          <img src="/providers/dataimpulse-light.webp" alt="DataImpulse" className="h-10 sm:h-14 drop-shadow-soft" />
+                          <img src="/providers/dataimpulse-light.webp" alt="DataImpulse" width={988} height={201} className="h-10 sm:h-14 w-auto drop-shadow-soft" />
                           <span className="text-2xl sm:text-4xl font-light text-zinc-600 tracking-widest uppercase hidden sm:block">| Network</span>
                         </div>
                       ) : (

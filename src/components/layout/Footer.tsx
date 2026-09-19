@@ -50,8 +50,8 @@ export function Footer() {
             <div>
               <h3 className="text-sm font-bold text-white mb-4">Secure Payments</h3>
               <div className="flex flex-wrap gap-3 items-center">
-                <img src="/providers/bkash.webp" alt="bKash" className="h-7 object-contain opacity-80 hover:opacity-100 transition-opacity" />
-                <img src="/providers/nagad.webp" alt="Nagad" className="h-7 object-contain opacity-80 hover:opacity-100 transition-opacity" />
+                <img src="/providers/bkash.webp" alt="bKash" width={225} height={225} loading="lazy" decoding="async" className="h-7 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
+                <img src="/providers/nagad.webp" alt="Nagad" width={225} height={225} loading="lazy" decoding="async" className="h-7 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
               </div>
             </div>
             

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { env } from "@/lib/env";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { PWAInstallPrompt } from "@/components/ui/PWAInstallPrompt";
+import { SWRDefaults } from "@/components/ui/SWRDefaults";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,6 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
   title: "ProxyData — Premium Proxy Infrastructure",
   description: "Buy premium residential and datacenter proxies by the GB. Instant activation, local payments, and honest pricing.",
   manifest: "/manifest.json",
@@ -56,9 +59,11 @@ export default function RootLayout({
       <body suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} min-h-full flex flex-col antialiased`}
       >
-        {children}
-        <ToastProvider />
-        <PWAInstallPrompt />
+        <SWRDefaults>
+          {children}
+          <ToastProvider />
+          <PWAInstallPrompt />
+        </SWRDefaults>
       </body>
     </html>
   );

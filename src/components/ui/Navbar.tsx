@@ -109,7 +109,7 @@ export function Navbar({
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-400/20 flex items-center justify-center text-cyan-400 font-bold text-lg">P</div>
           <div className="flex items-center gap-2">
-            <span className="font-bold text-xl tracking-tight text-white hidden sm:block">Proxy<span className="text-cyan-400">Data</span></span>
+            <span className="font-bold text-lg sm:text-xl tracking-tight text-white">Proxy<span className="text-cyan-400">Data</span></span>
             {isAffiliate && (
               <span className="hidden sm:inline-block rounded-md bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 uppercase tracking-wider border border-amber-500/30 shadow-amber-glow">
                 Affiliate
@@ -194,7 +194,7 @@ export function Navbar({
                   className="flex items-center gap-2 focus:outline-none bg-white/5 hover:bg-white/10 rounded-full pr-3 transition-colors border border-white/5"
                 >
                   {displayAvatar ? (
-                    <img src={displayAvatar} alt="Avatar" className="h-9 w-9 rounded-full object-cover border-2 border-zinc-950" />
+                    <img src={displayAvatar} alt="Avatar" width={36} height={36} className="h-9 w-9 rounded-full object-cover border-2 border-zinc-950" />
                   ) : (
                     <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-zinc-950 bg-cyan-500/15 text-sm font-bold text-cyan-300">
                       {displayInitials}

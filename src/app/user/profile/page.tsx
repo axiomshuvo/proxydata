@@ -130,7 +130,7 @@ const [sendingLink, setSendingLink] = useState(false);
               <label className="relative block w-20 h-20 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-2xl font-extrabold text-cyan-300 cursor-pointer overflow-hidden group hover:border-cyan-400/50 transition-colors">
                 <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
                 {me?.image ? (
-                  <img src={me.image} alt="Avatar" className="w-full h-full object-cover" />
+                  <img src={me.image} alt="Avatar" width={80} height={80} className="w-full h-full object-cover" />
                 ) : (
                   initials
                 )}
