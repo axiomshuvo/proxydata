@@ -301,22 +301,18 @@ export async function setDefaultPoolParameters(
  * Fetch available geo-targeting locations from DataImpulse.
  */
 export async function getLocations() {
-  const token = await getAuthToken();
-  const res = await fetch(`https://api.dataimpulse.com/reseller/common/locations?pool_type=residential`, {
-    headers: { Authorization: `Bearer ${token}` },
+  // Same auth scheme as apiRequest ("Token:") — the Bearer variant 401'd and
+  // starved the geo dropdown through the 1h error cache.
+  return await apiRequest("/reseller/common/locations?pool_type=residential", {
+    method: "GET",
   });
-  if (!res.ok) throw new Error(`Failed to fetch locations: ${res.status}`);
-  return res.json();
 }
 
 /**
  * Fetch live network pool statistics from DataImpulse.
  */
 export async function getPoolStats() {
-  const token = await getAuthToken();
-  const res = await fetch(`https://api.dataimpulse.com/reseller/common/pool_stats?pool_type=residential`, {
-    headers: { Authorization: `Bearer ${token}` },
+  return await apiRequest("/reseller/common/pool_stats?pool_type=residential", {
+    method: "GET",
   });
-  if (!res.ok) throw new Error(`Failed to fetch pool stats: ${res.status}`);
-  return res.json();
 }

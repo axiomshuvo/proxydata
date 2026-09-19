@@ -74,6 +74,10 @@ async function applyIndexes() {
       { unique: true }
     );
     await db.collection("transactions").createIndex({ userId: 1, createdAt: -1 });
+    await db.collection("transactions").createIndex(
+      { idempotencyKey: 1 },
+      { unique: true, sparse: true }
+    );
     await db.collection("transactions").createIndex({ status: 1, createdAt: 1 });
     await db.collection("transactions").createIndex(
       { paymentReference: 1 },
@@ -158,6 +162,11 @@ async function applyIndexes() {
     );
 
     console.log("🎉 ALL PHASE 5 MONGODB INDEXES APPLIED SUCCESSFULLY!");
+
+    // 12. NOTIFICATIONS — per-user feed + unread badge (polled every 60s).
+    console.log("Applying indexes for 'notifications'...");
+    await db.collection("notifications").createIndex({ userId: 1, createdAt: -1 });
+    await db.collection("notifications").createIndex({ userId: 1, read: 1 });
 
   } catch (error) {
     console.error("❌ Error applying indexes:", error);

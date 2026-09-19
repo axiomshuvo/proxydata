@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import clientPromise from "@/lib/db/mongodb";
+import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { assertSameOrigin } from "@/lib/route-guard";
+import { createInAppNotification } from "@/lib/notifications";
 
 /**
  * First-touch attribution binding (01 §12.3): called once after signup when
@@ -10,13 +12,22 @@ import { headers } from "next/headers";
  */
 export async function POST(req: Request) {
   try {
+    const csrf = assertSameOrigin(req);
+    if (csrf) return csrf;
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const me = session.user.publicUserId as string;
 
-    const { code } = await req.json();
-    const clean = String(code ?? "").trim().toUpperCase();
-    if (!clean) return NextResponse.json({ error: "Missing code." }, { status: 400 });
+    let rawCode: unknown;
+    try {
+      rawCode = (await req.json())?.code;
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+    const clean = String(rawCode ?? "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,32}$/.test(clean)) {
+      return NextResponse.json({ error: "Missing code." }, { status: 400 });
+    }
 
     const client = await clientPromise;
     const db = client.db();
@@ -50,6 +61,13 @@ export async function POST(req: Request) {
       // Lost the race with a concurrent bind — first touch won elsewhere.
       return NextResponse.json({ success: true, bound: false, reason: "already-attributed" });
     }
+    // Notify the referrer (best-effort — bind already committed).
+    createInAppNotification(
+      affiliateId,
+      "AFFILIATE_REFERRAL",
+      "New referral",
+      `A new user signed up with your code ${clean}.`,
+    ).catch(() => {});
     return NextResponse.json({ success: true, bound: true });
   } catch (error) {
     console.error("POST /api/affiliate/attribution Error:", error);

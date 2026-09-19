@@ -43,10 +43,10 @@ export default function SignUpPage() {
     try {
       const refCode = localStorage.getItem("ref");
       if (refCode) {
-        await fetch("/api/affiliate/bind", {
+        await fetch("/api/affiliate/attribution", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refCode }),
+          body: JSON.stringify({ code: refCode }),
         });
         localStorage.removeItem("ref");
       }

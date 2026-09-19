@@ -59,16 +59,26 @@ export function Navbar({
   
   const handleMarkAllRead = async () => {
     if (!authed) return;
-    await fetch("/api/notifications/read", { method: "POST" });
-    mutateNotifs({ ...notifData, unreadCount: 0, notifications: notifications.map((n: any) => ({ ...n, read: true })) });
+    try {
+      const res = await fetch("/api/notifications/read", { method: "POST" });
+      if (!res.ok) return;
+      mutateNotifs({ ...notifData, unreadCount: 0, notifications: notifications.map((n: any) => ({ ...n, read: true })) });
+    } catch {
+      // Network failure: leave badge untouched so the user retries.
+    }
   };
 
   const handleNotificationClick = async (n: any) => {
     setNotifOpen(false);
     if (!n.read) {
-      fetch("/api/notifications/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n._id }) });
-      const updated = notifications.map((notif: any) => notif._id === n._id ? { ...notif, read: true } : notif);
-      mutateNotifs({ ...notifData, unreadCount: Math.max(0, realUnreadCount - 1), notifications: updated }, false);
+      try {
+        const res = await fetch("/api/notifications/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n._id }) });
+        if (!res.ok) return;
+        const updated = notifications.map((notif: any) => notif._id === n._id ? { ...notif, read: true } : notif);
+        mutateNotifs({ ...notifData, unreadCount: Math.max(0, realUnreadCount - 1), notifications: updated }, false);
+      } catch {
+        // Network failure: leave the dot on so the click can be retried.
+      }
     }
     if (n.targetUrl) {
       router.push(n.targetUrl);

@@ -5,7 +5,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@heroui/react";
 import Link from "next/link";
 import useSWR from "swr";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { notifySuccess } from "@/components/ui/ToastProvider";
 
@@ -13,16 +13,26 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function UserDashboard() {
   const { data: session, isPending } = authClient.useSession();
+  const publicUserId = (session?.user as unknown as { publicUserId?: string } | undefined)?.publicUserId;
 
   useEffect(() => {
-    const ref = sessionStorage.getItem("pending_ref");
-    if (!ref || !session?.user) return;
+    if (!publicUserId) return;
+    // Canonical key shared with email signup ("ref"); the legacy
+    // "pending_ref" key is still honored once, then both are cleared only
+    // on success so a failed POST stays retryable.
+    const ref = sessionStorage.getItem("pending_ref") || localStorage.getItem("ref");
+    if (!ref || sessionStorage.getItem("attribution_done") === ref) return;
     fetch("/api/affiliate/attribution", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: ref }),
-    }).finally(() => sessionStorage.removeItem("pending_ref"));
-  }, [session?.user]);
+    }).then((res) => {
+      if (!res.ok) return;
+      sessionStorage.setItem("attribution_done", ref);
+      sessionStorage.removeItem("pending_ref");
+      localStorage.removeItem("ref");
+    }).catch(() => {});
+  }, [publicUserId]);
 
   useEffect(() => {
     if (!session?.user || !sessionStorage.getItem("oauth_welcome")) return;
@@ -43,6 +53,18 @@ export default function UserDashboard() {
     revalidateOnFocus: false,
   });
 
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  
+  const accounts = proxyData?.accounts || [];
+  useEffect(() => {
+    if (accounts.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(accounts[0]._id);
+    } else if (selectedAccountId && !accounts.some((a: any) => a._id === selectedAccountId)) {
+      // Revoked/deleted account: fall back so select value and card agree.
+      setSelectedAccountId(accounts.length > 0 ? accounts[0]._id : null);
+    }
+  }, [accounts, selectedAccountId]);
+
   if (isPending || proxiesLoading || txLoading) {
     return (
       <CustomerShell activePath="/user/dashboard">
@@ -54,8 +76,9 @@ export default function UserDashboard() {
   }
 
   const user = session?.user;
-  const accounts = proxyData?.accounts || [];
   const transactions = txData?.transactions || [];
+
+  const activeAccount = accounts.find((a: any) => a._id === selectedAccountId) || accounts[0];
 
   return (
     <CustomerShell activePath="/user/dashboard">
@@ -72,10 +95,10 @@ export default function UserDashboard() {
           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
             Active Plan / Provider
           </label>
-          <select className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500 cursor-pointer">
+          <select value={selectedAccountId || ""} onChange={(e) => setSelectedAccountId(e.target.value)} className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500 cursor-pointer">
             {accounts.length > 0 ? accounts.map((acc: any) => {
                const gbRemaining = (((acc.cachedRemainingBytes ?? acc.bandwidthBalanceBytes ?? 0)) / 1073741824).toFixed(2);
-               return <option key={acc._id}>{acc.proxyType?.toLowerCase() || "Datacenter"} (DataImpulse) - {gbRemaining} GB</option>;
+               return <option key={acc._id} value={acc._id}>{acc.proxyType?.toLowerCase() || "Datacenter"} (DataImpulse) - {gbRemaining} GB</option>;
             }) : (
                <option>No Active Plans</option>
             )}
@@ -93,15 +116,15 @@ export default function UserDashboard() {
           {/* Proxy Access Card */}
           <div className="bg-zinc-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-6 relative overflow-hidden lg:col-span-1">
             <div className="absolute top-0 right-0 bg-cyan-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-widest shadow-lg">
-              {accounts[0]?.proxyType?.toLowerCase() || "Datacenter"}
+              {activeAccount?.proxyType?.toLowerCase() || "Datacenter"}
             </div>
             <h2 className="text-sm font-semibold text-white mb-4">Proxy Access</h2>
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
                 <label className="w-20 text-xs text-zinc-400">Login:</label>
                 <div className="flex items-center bg-black/50 border border-white/5 rounded-md overflow-hidden flex-1">
-                  <input type="text" value={accounts[0]?.login || ""} readOnly className="flex-1 bg-transparent border-none text-zinc-400 font-mono text-xs px-3 py-2 outline-none w-full" />
-                  <button className="px-3 py-2 text-cyan-500 bg-cyan-500/10 border-l border-white/5 font-semibold text-xs hover:bg-cyan-500/20 transition-colors" onClick={() => navigator.clipboard.writeText(accounts[0]?.login || "")}>COPY</button>
+                  <input type="text" value={activeAccount?.login || ""} readOnly className="flex-1 bg-transparent border-none text-zinc-400 font-mono text-xs px-3 py-2 outline-none w-full" />
+                  <button className="px-3 py-2 text-cyan-500 bg-cyan-500/10 border-l border-white/5 font-semibold text-xs hover:bg-cyan-500/20 transition-colors" onClick={() => navigator.clipboard.writeText(activeAccount?.login || "")}>COPY</button>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
@@ -140,7 +163,7 @@ export default function UserDashboard() {
               </div>
               <div className="mt-6">
                 <div className="text-xs text-zinc-400 mb-1">Traffic left:</div>
-                <div className="text-4xl font-bold text-cyan-400">{(((accounts[0]?.cachedRemainingBytes ?? accounts[0]?.bandwidthBalanceBytes ?? 0)) / 1073741824).toFixed(2)} GB</div>
+                <div className="text-4xl font-bold text-cyan-400">{(((activeAccount?.cachedRemainingBytes ?? activeAccount?.bandwidthBalanceBytes ?? 0)) / 1073741824).toFixed(2)} GB</div>
               </div>
             </div>
             <Link href="/user/plans" className="block w-full">

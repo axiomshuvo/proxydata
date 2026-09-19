@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import clientPromise from "@/lib/db/mongodb";
 import { headers } from "next/headers";
 import { getResellerBalance } from "@/lib/dataimpulse/client";
+import { escapeRegex } from "@/lib/route-guard";
 
 const PAGE_LIMIT = 100;
 
@@ -27,10 +28,17 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const level = searchParams.get("level") || "ALL";
-    const source = searchParams.get("source") || "ALL";
-    const provider = searchParams.get("provider") || "ALL";
-    const q = (searchParams.get("q") || "").trim();
+    const level = ["ALL", "INFO", "WARN", "ERROR"].includes(searchParams.get("level") ?? "ALL")
+      ? (searchParams.get("level") as string)
+      : "ALL";
+    const source = ["ALL", "adapter", "admin", "api", "cron", "auth", "email", "system"].includes(
+      searchParams.get("source") ?? "ALL",
+    )
+      ? (searchParams.get("source") as string)
+      : "ALL";
+    const provider = String(searchParams.get("provider") || "ALL").slice(0, 32);
+    // Escape before $regex — raw user input here is a ReDoS vector.
+    const q = escapeRegex(searchParams.get("q") || "");
     const limit = Math.min(Number(searchParams.get("limit")) || PAGE_LIMIT, 500);
 
     const client = await clientPromise;

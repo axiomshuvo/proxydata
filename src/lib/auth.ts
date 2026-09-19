@@ -104,7 +104,7 @@ export const auth = betterAuth({
       create: {
         before: async (user) => {
           // Check if this is the Master Admin email bootstrapping
-          const isMasterAdmin = user.email === env.MASTER_ADMIN_EMAIL;
+          const isMasterAdmin = user.email === env.MASTER_ADMIN_EMAIL && user.emailVerified === true;
 
           return {
             data: {

@@ -35,6 +35,15 @@ const envSchema = z.object({
     .string()
     .email("ADMIN_RECEIVER_EMAIL must be a valid email"),
 
+  // Proxy credential vault (AES-256-GCM): dedicated 32-byte hex key.
+  // Never reuse BETTER_AUTH_SECRET — rotation of either must not break the other.
+  PROXY_ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/, "PROXY_ENCRYPTION_KEY must be 64-char hex (openssl rand -hex 32)"),
+
+  // Cron bearer (dedicated secret — never reuse SMTP_PASS).
+  CRON_SECRET: z.string().min(32, "CRON_SECRET must be at least 32 characters"),
+
   // External APIs (DataImpulse reseller auth = dashboard login + password,
   // POST formdata per docs/03 §1 — never a single API key)
   DATAIMPULSE_API_LOGIN: z.string().min(1, "DATAIMPULSE_API_LOGIN is required"),

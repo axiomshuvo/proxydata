@@ -1,8 +1,10 @@
 import { ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import clientPromise from "@/lib/db/mongodb";
-import { headers } from "next/headers";
+import { decrypt, DecryptionError } from "@/lib/crypto";
+import { assertSameOrigin, requireActiveUser } from "@/lib/route-guard";
+import { hitRateLimit } from "@/lib/rate-limit";
+import { logRuntime } from "@/lib/runtime-log";
 
 /**
  * Reveal-once proxy password (02 §43): the owning authenticated user only,
@@ -11,11 +13,22 @@ import { headers } from "next/headers";
  */
 export async function POST(req: Request) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const csrf = assertSameOrigin(req);
+    if (csrf) return csrf;
+    const got = await requireActiveUser();
+    if ("response" in got) return got.response;
+    const session = got.session;
 
     const { proxyAccountId } = await req.json();
     if (!proxyAccountId) return NextResponse.json({ error: "Missing proxyAccountId." }, { status: 400 });
+
+    const burst = hitRateLimit(`reveal:${session.user.publicUserId}`, 10, 60 * 60 * 1000);
+    if (!burst.allowed) {
+      return NextResponse.json(
+        { error: "Too many reveal attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(burst.retryAfterMs / 1000)) } },
+      );
+    }
 
     let oid: ObjectId;
     try {
@@ -44,7 +57,21 @@ export async function POST(req: Request) {
       createdAt: new Date(),
     });
 
-    return NextResponse.json({ login: account.login, password: account.password });
+    let password: string;
+    try {
+      password = decrypt(account.password);
+    } catch (error) {
+      logRuntime({
+        level: "ERROR",
+        source: "api",
+        operation: "PROXY_REVEAL_DECRYPT",
+        status: "FAILED",
+        message: `Decrypt failed for proxy account ${proxyAccountId} (${error instanceof DecryptionError ? error.message : "unknown"}).`,
+      });
+      return NextResponse.json({ error: "Credential unavailable — contact support." }, { status: 500 });
+    }
+
+    return NextResponse.json({ login: account.login, password });
   } catch (error) {
     console.error("POST /api/proxy/reveal Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

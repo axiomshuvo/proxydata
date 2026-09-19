@@ -10,7 +10,8 @@ export async function POST(req: Request) {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const user = session.user;
+    const publicUserId = String((session.user as unknown as { publicUserId?: string }).publicUserId ?? "");
+    if (!publicUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const client = await clientPromise;
     const db = client.db();
@@ -18,16 +19,20 @@ export async function POST(req: Request) {
     // Check if a specific notification ID was passed
     let body = {};
     try { body = await req.json(); } catch(e) {}
-    
+
     if (body && (body as any).id) {
+       const rawId = String((body as any).id ?? "");
+       if (!ObjectId.isValid(rawId)) {
+         return NextResponse.json({ error: "Bad notification id." }, { status: 400 });
+       }
        await db.collection("notifications").updateOne(
-         { _id: new ObjectId((body as any).id), userId: user.id },
-         { $set: { read: true } }
-       );
+          { _id: new ObjectId(rawId), userId: publicUserId },
+          { $set: { read: true } }
+        );
     } else {
        // Mark all as read
        await db.collection("notifications").updateMany(
-         { userId: user.id, read: false },
+         { userId: publicUserId, read: false },
          { $set: { read: true } }
        );
     }

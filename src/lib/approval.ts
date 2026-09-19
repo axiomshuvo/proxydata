@@ -44,6 +44,9 @@ export async function claimCouponTx(
   if (coupon.validFrom && new Date(coupon.validFrom) > now) return bad("is not yet valid.");
   if (coupon.validTo && new Date(coupon.validTo) < now) return bad("has expired.");
   if (coupon.planId && String(coupon.planId) !== String(tx.planId)) return bad("is bound to a different plan.");
+  // Binding re-check at approval: create-time validation alone is not enough —
+  // any path that skips quoteDiscounts must still fail closed here.
+  if (coupon.userId && String(coupon.userId) !== String(tx.userId)) return bad("is assigned to a different account.");
   // Idempotent retry FIRST: this exact (coupon, transaction) already claimed.
   // (Must precede the exhaustion check — a retried approval of the same order
   // passes through even when the coupon is now fully claimed.)

@@ -20,8 +20,12 @@ export default async function proxy(request: NextRequest) {
   const isCustomerRoute = pathname.startsWith("/user/") && !isAuthRoute;
   const isAdminRoute = ADMIN_PATH !== "" && (pathname === ADMIN_PATH || pathname.startsWith(`${ADMIN_PATH}/`));
 
-  // Fast check: Ensure a Better Auth session cookie exists.
-  const hasCookie = request.cookies.getAll().some((c) => c.name.includes("better-auth.session_token"));
+  // Fast check: exact Better Auth session cookie names only. A substring
+  // match would let a spoofed cookie (e.g. "xbetter-auth.session_token")
+  // pass the guard, so match the full name.
+  const hasCookie = request.cookies
+    .getAll()
+    .some((c) => c.name === "better-auth.session_token" || c.name === "__Secure-better-auth.session_token");
 
   // If they are logged in and trying to access a login/signup page, bounce to dashboard
   if (isAuthRoute && hasCookie) {

@@ -26,17 +26,17 @@ function buildCurlCommand(params: any) {
     if (params.zip) segments.push(`zip.${params.zip.toLowerCase()}`);
   }
 
-  if (params.mode === "STICKY" && params.sessionId) segments.push(`sessid.${params.sessionId}`);
+  if (params.mode?.toUpperCase() === "STICKY" && params.sessionId) segments.push(`sessid.${params.sessionId}`);
 
   if (segments.length > 0) username += "__" + segments.join(";");
 
   const port =
-    params.mode === "STICKY" && params.stickyPort
+    params.mode?.toUpperCase() === "STICKY" && params.stickyPort
       ? params.stickyPort
-      : params.protocol === "SOCKS5"
+      : params.protocol?.toUpperCase() === "SOCKS5"
         ? "824"
         : "823";
-  const scheme = params.protocol.toLowerCase();
+  const scheme = String(params.protocol ?? "http").toLowerCase();
 
   return `curl -x ${scheme}://${username}:${params.password}@gw.dataimpulse.com:${port} https://ipinfo.io`;
 }
@@ -47,8 +47,12 @@ export default function ProxyConfigPage() {
 
   const [localMeta] = useState(() => {
     if (typeof window !== "undefined") {
-      const s = localStorage.getItem("proxydata_meta");
-      if (s) return JSON.parse(s);
+      try {
+        const s = localStorage.getItem("proxydata_meta");
+        if (s) return JSON.parse(s);
+      } catch {
+        try { localStorage.removeItem("proxydata_meta"); } catch { /* ignore */ }
+      }
     }
     return { locations: {}, stats: {} };
   });
@@ -197,7 +201,7 @@ export default function ProxyConfigPage() {
     : "";
 
   const host = "gw.dataimpulse.com";
-  const port = config.mode === "STICKY" && (config as any).stickyPort ? String((config as any).stickyPort) : config.protocol === "SOCKS5" ? "824" : "823";
+  const port = config.mode?.toUpperCase() === "STICKY" && (config as any).stickyPort ? String((config as any).stickyPort) : config.protocol?.toUpperCase() === "SOCKS5" ? "824" : "823";
   const finalUser = displayUsername || login;
   const pass = revealed ? revealed.password : "********";
 
@@ -252,7 +256,7 @@ export default function ProxyConfigPage() {
               </label>
               <select 
                 value={config.country} 
-                onChange={(e) => { updateConfig("country", e.target.value); updateConfig("state", ""); updateConfig("city", ""); }}
+                onChange={(e) => { updateConfig("country", e.target.value); }}
                 className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500"
               >
                 <option value="">Select Country</option>
@@ -365,11 +369,11 @@ export default function ProxyConfigPage() {
               <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Type</label>
               <div className="space-y-2 mt-2">
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300">
-                  <input type="radio" name="proxy_mode" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.mode === "ROTATING"} onChange={() => updateConfig("mode", "ROTATING")} />
+                  <input type="radio" name="proxy_mode" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.mode?.toUpperCase() === "ROTATING"} onChange={() => updateConfig("mode", "rotating")} />
                   Rotating
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-500">
-                  <input type="radio" name="proxy_mode" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.mode === "STICKY"} onChange={() => updateConfig("mode", "STICKY")} />
+                  <input type="radio" name="proxy_mode" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.mode?.toUpperCase() === "STICKY"} onChange={() => updateConfig("mode", "sticky")} />
                   Sticky
                 </label>
               </div>
@@ -378,11 +382,11 @@ export default function ProxyConfigPage() {
               <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Protocol</label>
               <div className="space-y-2 mt-2">
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300">
-                  <input type="radio" name="proxy_protocol" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.protocol === "HTTP"} onChange={() => updateConfig("protocol", "HTTP")} />
+                  <input type="radio" name="proxy_protocol" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.protocol?.toUpperCase() === "HTTP"} onChange={() => updateConfig("protocol", "http")} />
                   HTTP/HTTPS
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-500">
-                  <input type="radio" name="proxy_protocol" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.protocol === "SOCKS5"} onChange={() => updateConfig("protocol", "SOCKS5")} />
+                  <input type="radio" name="proxy_protocol" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.protocol?.toUpperCase() === "SOCKS5"} onChange={() => updateConfig("protocol", "socks5")} />
                   SOCKS5
                 </label>
               </div>

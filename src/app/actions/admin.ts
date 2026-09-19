@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { ObjectId, type Db } from "mongodb";
 import { randomBytes } from "crypto";
+import { encrypt } from "@/lib/crypto";
 import { ApprovalAbort, claimCouponTx, decideCommission } from "@/lib/approval";
 import {
   addSubUserBalance,
@@ -13,11 +14,12 @@ import {
   getAdditionHistory,
   getResellerBalance,
   getSubUserBalance,
-  setSubUserStatus,
+  setSubUserStatus, dropSubUserBalance,
 } from "@/lib/dataimpulse/client";
 import { createInAppNotification } from "@/lib/notifications";
 import { PlanSchema } from "@/lib/db/schema";
 import {
+  loadProviderBilling,
   loadWholesaleCosts,
   quoteTiered,
   validateTiers,
@@ -313,6 +315,12 @@ export async function approveTransaction(transactionId: string) {
   const opKey = { transactionId: tx.transactionId ?? transactionId, operationType: "ADD_BALANCE" as const };
   const existingOp = await db.collection("provider_operation_logs").findOne(opKey);
   if (existingOp?.status === "SUCCESS") {
+    // Audit Note: Short-circuiting here leaves the transaction stuck in ALLOCATING/PROVIDER_VERIFIED
+    // We must push it forward to ACTIVE before returning.
+    await db.collection("transactions").updateOne(
+      { _id: tx._id, status: { $in: ["APPROVED", "ALLOCATING", "PROVIDER_VERIFIED"] } },
+      { $set: { status: "ACTIVE", updatedAt: new Date() } }
+    );
     return { success: true, deduped: true };
   }
 
@@ -344,7 +352,9 @@ export async function approveTransaction(transactionId: string) {
         throw new ApprovalAbort(`Approval aborted back to PENDING: ${why}`);
       };
       try {
-        const plan = await db.collection("plans").findOne({ _id: new ObjectId(tx.planId) });
+        const plan = tx.planId && ObjectId.isValid(tx.planId)
+          ? await db.collection("plans").findOne({ _id: new ObjectId(tx.planId) })
+          : null;
         if (!plan || plan.status !== "ACTIVE") throw new Error("Plan no longer ACTIVE.");
         // Provider gate: orders placed before a pause must not allocate after
         // it — back to PENDING until the provider returns (all modes).
@@ -422,10 +432,19 @@ export async function approveTransaction(transactionId: string) {
       proxyType,
     });
     // Fallback for legacy rows keyed by publicUserId string variants.
-    proxyAccount ??= await db.collection("proxy_accounts").findOne({
-      providerId: "dataimpulse",
-      proxyType,
-    });
+    // tx.userId is a publicUserId (PX-…) for normal orders — only attempt the
+    // _id lookup when it is actually a valid ObjectId, otherwise a throw here
+    // would mark a perfectly good order FAILED.
+    if (!proxyAccount && ObjectId.isValid(tx.userId)) {
+      const userRow = await db.collection("user").findOne({ _id: new ObjectId(tx.userId) });
+      if (userRow?.publicUserId) {
+        proxyAccount = await db.collection("proxy_accounts").findOne({
+          userId: userRow.publicUserId,
+          providerId: "dataimpulse",
+          proxyType,
+        });
+      }
+    }
 
     let subUserId: number | null = proxyAccount
       ? Number(proxyAccount.providerSubUserId ?? proxyAccount.providerSubId)
@@ -446,7 +465,7 @@ export async function approveTransaction(transactionId: string) {
         login: created.login,
         // NOTE: encrypt with AES-256-GCM before ANY write (02 §43) — rotation
         // helper lands with the credentials-rotation step; never log plaintext.
-        password: created.password,
+        password: encrypt(created.password),
         cumulativePurchasedBytes: 0,
         cachedRemainingBytes: 0,
         lastBalanceSyncAt: new Date(),
@@ -736,7 +755,7 @@ export async function updatePlan(id: string, input: PlanInput) {
 /* ------------------------------------------------------------------ */
 
 import { ProviderDocSchema } from "@/lib/db/schema";
-import { loadProviderBilling, POOL_COEFFICIENTS } from "@/lib/pricing";
+import { POOL_COEFFICIENTS } from "@/lib/pricing";
 
 const DATAIMPULSE_DEFAULTS = {
   providerId: "dataimpulse",
@@ -918,9 +937,12 @@ export async function setAffiliate(publicUserId: string, grant: boolean) {
   const caps = new Set<string>(Array.isArray(user.capabilities) ? user.capabilities : []);
   if (grant) {
     caps.add("CAPABILITY_AFFILIATE");
+    // Canonical key is publicUserId (readers query by PX-…). The $in filter
+    // also matches legacy hex-keyed rows and self-heals them to PX on write.
+    const hexId = user._id.toString();
     await db.collection("affiliate_profiles").updateOne(
-      { userId: user._id.toString() },
-      { $set: { userId: user._id.toString(), status: "ACTIVE" }, $setOnInsert: { createdAt: new Date() } },
+      { userId: { $in: [safeId, hexId] } },
+      { $set: { userId: safeId, status: "ACTIVE" }, $setOnInsert: { createdAt: new Date() } },
       { upsert: true },
     );
   } else {
@@ -974,6 +996,12 @@ export async function createCoupon(input: CouponInput) {
   const value = Number(input.value);
   if (!Number.isFinite(value) || value <= 0) throw new Error("Value must be > 0.");
   if (input.type === "PERCENTAGE" && value > 100) throw new Error("Percentage cannot exceed 100.");
+  const cap = input.maxDiscountAmount !== undefined ? Number(input.maxDiscountAmount) : undefined;
+  if (cap !== undefined && (!Number.isFinite(cap) || cap < 0)) throw new Error("Max discount must be ≥ 0.");
+  const usageLimit = input.usageLimit !== undefined && input.usageLimit !== null ? Number(input.usageLimit) : undefined;
+  if (usageLimit !== undefined && (!Number.isInteger(usageLimit) || usageLimit < 1)) {
+    throw new Error("Usage limit must be an integer ≥ 1.");
+  }
   const client = await clientPromise;
   const exists = await client.db().collection("coupons").findOne({ code });
   if (exists) throw new Error("Code already exists.");
@@ -990,10 +1018,10 @@ export async function createCoupon(input: CouponInput) {
     status: "ACTIVE" as const,
     type: input.type,
     value,
-    maxDiscountAmount: input.maxDiscountAmount !== undefined ? Number(input.maxDiscountAmount) : undefined,
+    maxDiscountAmount: cap,
     isOneTime: !!input.isOneTime,
     usageCount: 0,
-    usageLimit: input.usageLimit !== undefined && input.usageLimit !== null ? Number(input.usageLimit) : undefined,
+    usageLimit,
     planId: input.planId || undefined,
     userId: boundUserId,
     validFrom: input.validFrom ? new Date(input.validFrom) : undefined,
@@ -1304,11 +1332,12 @@ export async function getSupportTicketsAdmin() {
 
 export async function updateSupportTicketStatus(id: string, status: "OPEN" | "RESOLVED") {
   const admin = await requireAdmin();
+  const oid = asObjectId(id, "ticketId");
   const client = await clientPromise;
   const db = client.db();
 
   await db.collection("support_tickets").updateOne(
-    { _id: new ObjectId(id) },
+    { _id: oid },
     { $set: { status, updatedAt: new Date() } }
   );
   return { success: true };
@@ -1335,15 +1364,196 @@ export async function replySupportTicket(ticketId: string, replyMessage: string)
   const user = await db.collection("user").findOne({ email: ticket.email.toLowerCase() });
   
   if (user) {
-    // Send in-app notification
+    // Send in-app notification (canonical publicUserId keying — hex lands invisible).
     const { createInAppNotification: notify } = await import("@/lib/notifications");
     await notify(
-      user._id.toString(), 
-      "SUPPORT_REPLY" as any, 
-      "Support Ticket Reply", 
+      String(user.publicUserId ?? user._id.toString()),
+      "SUPPORT_REPLY",
+      "Support Ticket Reply",
       `Admin replied: ${cleanReply.length > 50 ? cleanReply.slice(0, 50) + '...' : cleanReply}`
     );
   }
   
   return { success: true, deliveredToApp: !!user };
+}
+
+/**
+ * Admin directly gifts a plan to a user.
+ * Bypasses payment by creating a 0 BDT APPROVED transaction and executing allocation.
+ */
+export async function adminActivatePackage(publicUserId: string, planId: string, customGb: number, idempotencyKey?: string) {
+  const admin = await requireAdmin();
+  const safeId = asId(publicUserId, "publicUserId");
+  const planOid = asObjectId(planId, "planId");
+  const client = await clientPromise;
+  const db = client.db();
+
+  if (!customGb || customGb < 1 || !Number.isInteger(customGb)) {
+    throw new Error("Bandwidth must be a positive integer.");
+  }
+  const idemKey = String(idempotencyKey ?? "").trim().slice(0, 64);
+  if (!idemKey || !/^[A-Za-z0-9_-]{8,64}$/.test(idemKey)) {
+    throw new Error("Missing idempotency key — refresh and retry the gift form.");
+  }
+  const idemId = `gift:${idemKey}`;
+
+  const user = await db.collection("user").findOne({ publicUserId: safeId });
+  if (!user) throw new Error("User not found.");
+  if (user.status !== "ACTIVE") throw new Error("Cannot gift to a suspended or deactivated account.");
+
+  const plan = await db.collection("plans").findOne({ _id: planOid });
+  if (!plan) throw new Error("Plan not found.");
+
+  // Price the gift through the same server-side engine as checkout so a
+  // TIERED gift can't mint arbitrary GB at a stale snapshot.
+  const billing = await loadProviderBilling(db, plan.providerId ?? "dataimpulse");
+  let unitRateBdt: number | null = null;
+  let basePriceBdt = plan.retailPriceBdt;
+  let bandwidthGb = customGb;
+  if (plan.pricingMode === "TIERED") {
+    const quote = quoteTiered(plan.tiers ?? [], plan.proxyType, customGb, {
+      RESIDENTIAL: billing.baseBdt,
+      MOBILE: billing.baseBdt,
+      DATACENTER: billing.baseBdt,
+      PREMIUM_RESIDENTIAL: billing.baseBdt,
+    }, billing.coefficients);
+    basePriceBdt = quote.subtotalBdt;
+    bandwidthGb = quote.quantityGb;
+    unitRateBdt = quote.unitRateBdt;
+  } else if (customGb !== plan.bandwidthGb) {
+    throw new Error("Fixed bundle — gift size must equal the plan size.");
+  }
+
+  const transactionId = `TX-ALLOC-${Date.now().toString(36).toUpperCase()}`;
+
+  const transaction = {
+    transactionId,
+    // Canonical key: publicUserId everywhere (purchases, redeem, accounts, ledger).
+    userId: safeId,
+    type: "PURCHASE",
+    status: "PENDING",
+    paymentMethod: "MANUAL_ALLOCATION",
+    paymentReference: `Allocated by Admin ${admin.email}`,
+    idempotencyKey: idemId,
+
+    basePriceBdt,
+    unitRateBdt,
+    offerDiscountBdt: 0,
+    couponDiscountBdt: basePriceBdt, // 100% discount effectively
+    finalDiscountAppliedBdt: basePriceBdt,
+    discountSource: "NONE",
+    finalAmountBdt: 0,
+
+    planId: plan._id.toString(),
+    planSnapshot: { planId: plan._id.toString(), name: plan.name },
+    proxyType: plan.proxyType,
+    providerId: plan.providerId ?? "dataimpulse",
+    bandwidthGb,
+    bandwidthBytes: bandwidthGb * 1073741824,
+
+    couponCode: null,
+    affiliateCode: null,
+
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // Idempotent insert: double-submit of the same gift form returns the
+  // original result instead of charging upstream twice.
+  const prior = await db.collection("transactions").findOne({ idempotencyKey: idemId });
+  if (prior) return { success: true, deduped: true };
+  let insertedId: ObjectId;
+  try {
+    const res = await db.collection("transactions").insertOne(transaction);
+    insertedId = res.insertedId;
+  } catch {
+    const existing = await db.collection("transactions").findOne({ idempotencyKey: idemId });
+    if (!existing) throw new Error("Duplicate gift submission — please refresh and check the ledger.");
+    return { success: true, deduped: true };
+  }
+
+  // Directly pass into the exact same pipeline used by manual approvals
+  // so all proxy_accounts, DataImpulse APIs, and Notification Hooks fire cleanly!
+  try {
+    await approveTransaction(insertedId.toString());
+    
+    // Create Audit Log
+    await db.collection("audit_logs").insertOne({
+      actorId: admin.id || admin.email || "admin",
+      actorRole: "ROLE_ADMIN",
+      action: "MANUAL_ALLOCATION",
+      targetType: "USER",
+      targetId: safeId,
+      metadata: {
+        transactionId,
+        planId: plan._id.toString(),
+        bandwidthGb: customGb
+      },
+      createdAt: new Date(),
+    });
+  } catch (err: any) {
+    throw new Error(`Failed to allocate package upstream: ${err.message}`);
+  }
+
+  return { success: true };
+}
+
+export async function revokeUserPackage(subUserId: number, publicUserId: string) {
+  const admin = await requireAdmin();
+  const safeId = asId(publicUserId, "publicUserId");
+  // Server Action args cross the network as tampered payloads — a crafted
+  // object like {"$ne": null} must never reach the Mongo filter.
+  const subId = Number(subUserId);
+  if (!Number.isInteger(subId) || subId <= 0) throw new Error("Invalid sub-user ID.");
+  const client = await clientPromise;
+  const db = client.db();
+
+  const user = await db.collection("user").findOne({ publicUserId: safeId });
+  if (!user) throw new Error("User not found.");
+  const idKeys = [safeId, user._id.toString()];
+
+  // Atomically claim the account ACTIVE → REVOKED: double-clicks and retries
+  // match nothing the second time instead of dropping upstream twice.
+  const account = await db.collection("proxy_accounts").findOneAndUpdate(
+    {
+      $or: [{ providerSubUserId: subId }, { providerSubId: subId }],
+      userId: { $in: idKeys },
+      status: "ACTIVE",
+    },
+    { $set: { status: "REVOKED", bandwidthBalanceBytes: 0, cachedRemainingBytes: 0, updatedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+  if (!account) throw new Error("Proxy account not found, already revoked, or does not belong to this user.");
+
+  try {
+    await dropSubUserBalance(subId);
+  } catch (err: unknown) {
+    // Local row is already REVOKED; surface upstream failure for manual reconcile.
+    await db.collection("audit_logs").insertOne({
+      actorId: admin.id || admin.email || "admin",
+      actorRole: "ROLE_ADMIN",
+      action: "PACKAGE_REVOKE_UPSTREAM_FAILED",
+      targetType: "PROXY_ACCOUNT",
+      targetId: subId.toString(),
+      metadata: { publicUserId: safeId, proxyType: account.proxyType, error: err instanceof Error ? err.message : String(err) },
+      createdAt: new Date(),
+    });
+    throw new Error(`Locally revoked, but upstream drop failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // Audit Log
+  await db.collection("audit_logs").insertOne({
+    actorId: admin.id || admin.email || "admin",
+    actorRole: "ROLE_ADMIN",
+    action: "PACKAGE_REVOKED",
+    targetType: "PROXY_ACCOUNT",
+    targetId: subId.toString(),
+    metadata: {
+      publicUserId: safeId,
+      proxyType: account.proxyType
+    },
+    createdAt: new Date(),
+  });
+
+  return { success: true };
 }

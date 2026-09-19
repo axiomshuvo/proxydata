@@ -4,10 +4,16 @@ import { sendEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { logRuntime } from "@/lib/runtime-log";
 
+import { createHash, timingSafeEqual } from "crypto";
+
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${env.SMTP_PASS}`) {
+    // Dedicated cron bearer with constant-time compare — never reuse SMTP_PASS.
+    const authHeader = req.headers.get("authorization") ?? "";
+    const expected = `Bearer ${env.CRON_SECRET}`;
+    const a = createHash("sha256").update(authHeader).digest();
+    const b = createHash("sha256").update(expected).digest();
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

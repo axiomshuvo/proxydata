@@ -1,1 +1,4 @@
 - Prefers clean commit messages without `Co-Authored-By` trailers or AI attribution lines. Confidence: 0.85
+- Prefers using HeroUI library components instead of building custom UI components. Confidence: 0.85
+- Prefers to handle git commits themselves; agent should never commit automatically and leave changes uncommitted for review. Confidence: 0.95
+- Prefers info-only answers when asking a question; agent should not run commands/scripts or make changes without explicit instruction to do so. Confidence: 0.9

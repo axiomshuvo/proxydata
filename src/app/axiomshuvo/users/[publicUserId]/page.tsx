@@ -2,11 +2,11 @@
 import { AdminShell } from "@/components/layout/AdminShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@heroui/react";
-import { StarFill } from "@gravity-ui/icons";
+import { StarFill, Gift, Xmark } from "@gravity-ui/icons";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getUserDetails, setAffiliate, updateUserStatus } from "@/app/actions/admin";
+import { getUserDetails, setAffiliate, updateUserStatus, getPlansAdmin, adminActivatePackage, revokeUserPackage } from "@/app/actions/admin";
 import { notifyError, notifySuccess } from "@/components/ui/ToastProvider";
 
 const GB = 1073741824;
@@ -19,7 +19,88 @@ export default function AdminUserDetailPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [confirmAffiliate, setConfirmAffiliate] = useState<"GRANT" | "REVOKE" | null>(null);
+  const [confirmRevoke, setConfirmRevoke] = useState<{subUserId: number, proxyType: string} | null>(null);
+
+  const handleRevoke = async () => {
+    if (!confirmRevoke) return;
+    setBusy(true);
+    try {
+      await revokeUserPackage(confirmRevoke.subUserId, publicUserId);
+      notifySuccess("Revoked", "The proxy package has been successfully revoked and bandwidth dropped.");
+      setConfirmRevoke(null);
+      refresh();
+    } catch (e) {
+      notifyError("Failed", e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   const [confirmSuspend, setConfirmSuspend] = useState(false);
+  
+  // Activate Package State
+  const [showActivateModal, setShowActivateModal] = useState(false);
+  const [activateStep, setActivateStep] = useState<1 | 2>(1);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [activateGb, setActivateGb] = useState<number | "">(1);
+  const [activating, setActivating] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (showActivateModal && plans.length === 0) {
+      getPlansAdmin().then(setPlans).catch(console.error);
+    }
+  }, [showActivateModal, plans.length]);
+
+  useEffect(() => {
+    if (selectedPlanId) {
+      const p = plans.find(x => x._id === selectedPlanId);
+      if (p && p.bandwidthGb) {
+        setActivateGb(p.bandwidthGb);
+      }
+    }
+  }, [selectedPlanId, plans]);
+
+  const closeActivateModal = () => {
+    setShowActivateModal(false);
+    // Add a tiny delay so the modal fade out doesn't glitch visually before state clears
+    setTimeout(() => {
+      setActivateStep(1);
+      setSelectedPlanId("");
+      setActivateGb(1);
+      setFormError(null);
+    }, 150);
+  };
+
+  const handleActivateNext = () => {
+    if (!selectedPlanId) return setFormError("Please select a provider and plan.");
+    if (activateGb === "" || activateGb < 1 || !Number.isInteger(activateGb)) return setFormError("Bandwidth must be a positive integer.");
+    setFormError(null);
+    setActivateStep(2);
+  };
+
+  const handleActivatePackage = async () => {
+    if (!selectedPlanId) return;
+    setActivating(true);
+    try {
+      const keyBytes = new Uint8Array(16);
+      crypto.getRandomValues(keyBytes);
+      const idempotencyKey = Array.from(keyBytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      await adminActivatePackage(publicUserId, selectedPlanId, Number(activateGb), idempotencyKey);
+      notifySuccess("Activated", `${activateGb} GB has been successfully allocated to the user.`);
+      setShowActivateModal(false);
+      setActivateStep(1);
+      setSelectedPlanId("");
+      refresh(); // Reload UI
+    } catch (e) {
+      notifyError("Gift Failed", e instanceof Error ? e.message : String(e));
+    } finally {
+      setActivating(false);
+    }
+  };
+
+  const selectedPlanDetails = plans.find(p => p._id === selectedPlanId);
 
   const refresh = async () => {
     try {
@@ -89,10 +170,11 @@ export default function AdminUserDetailPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                <button onClick={() => setShowActivateModal(true)} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 font-bold text-xs uppercase rounded-xl transition-colors disabled:opacity-40"><Gift width={14}/> Activate Package</button>
                 {!isAffiliate ? (
-                  <button onClick={() => run(() => setAffiliate(publicUserId, true), "Partner granted.")} disabled={busy} className="px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs uppercase rounded-xl disabled:opacity-40">Grant Affiliate</button>
+                  <button onClick={() => setConfirmAffiliate("GRANT")} disabled={busy} className="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-bold text-xs uppercase rounded-xl transition-colors disabled:opacity-40">Grant Affiliate</button>
                 ) : (
-                  <button onClick={() => run(() => setAffiliate(publicUserId, false), "Partner revoked.")} disabled={busy} className="px-3 py-2 bg-zinc-800 text-zinc-400 font-bold text-xs uppercase rounded-xl disabled:opacity-40">Revoke Affiliate</button>
+                  <button onClick={() => setConfirmAffiliate("REVOKE")} disabled={busy} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold text-xs uppercase rounded-xl transition-colors disabled:opacity-40">Revoke Affiliate</button>
                 )}
                 {user.status === "ACTIVE" ? (
                   <button onClick={() => setConfirmSuspend(true)} disabled={busy} className="px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-400 font-bold text-xs uppercase rounded-xl disabled:opacity-40">Suspend</button>
@@ -121,6 +203,7 @@ export default function AdminUserDetailPage() {
                       <th className="pb-2 font-semibold text-right">Purchased</th>
                       <th className="pb-2 font-semibold text-right">Remaining</th>
                       <th className="pb-2 font-semibold text-right">Status</th>
+                      <th className="pb-2 font-semibold text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -130,7 +213,21 @@ export default function AdminUserDetailPage() {
                         <td className="py-3 font-mono text-xs text-zinc-400">#{a.providerSubUserId ?? a.providerSubId} · {a.login}</td>
                         <td className="py-3 text-right text-xs">{(((a.cumulativePurchasedBytes ?? 0)) / GB).toFixed(2)} GB</td>
                         <td className="py-3 text-right text-xs font-bold text-white">{(((a.cachedRemainingBytes ?? a.bandwidthBalanceBytes ?? 0)) / GB).toFixed(2)} GB</td>
-                        <td className="py-3 text-right text-xs">{a.status}</td>
+                        <td className="py-3 text-right text-xs">
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${a.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                            {a.status}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          {a.status === 'ACTIVE' && (
+                            <button
+                              onClick={() => setConfirmRevoke({ subUserId: Number(a.providerSubUserId ?? a.providerSubId), proxyType: a.proxyType })}
+                              className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded text-[10px] font-bold uppercase transition-colors"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -229,7 +326,12 @@ export default function AdminUserDetailPage() {
       {confirmSuspend && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <GlassCard className="!bg-zinc-950 !border-white/10 w-full max-w-md p-6 rounded-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">Suspend {publicUserId}?</h3>
+            <h3 className="text-lg font-bold text-white mb-4">Suspend User?</h3>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 flex flex-col gap-1 text-sm">
+              <div className="flex justify-between"><span className="text-red-300">User ID:</span> <span className="text-white font-mono">{publicUserId}</span></div>
+              <div className="flex justify-between"><span className="text-red-300">Name:</span> <span className="text-white">{user?.name || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-red-300">Email:</span> <span className="text-white">{user?.email || "—"}</span></div>
+            </div>
             <p className="text-xs text-zinc-400 mb-4">Fail-closed: provider sub-users blocked first, sessions revoked, then the flip.</p>
             <div className="flex gap-3">
               <Button onClick={() => setConfirmSuspend(false)} className="flex-1 bg-white/10 text-white font-bold rounded-xl">Cancel</Button>
@@ -240,6 +342,139 @@ export default function AdminUserDetailPage() {
           </GlassCard>
         </div>
       )}
+
+      {/* Activate Package Modal */}
+      {showActivateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-3xl bg-zinc-950 border border-white/10 p-6 shadow-2xl">
+            <button onClick={closeActivateModal} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition-colors bg-zinc-900 hover:bg-zinc-800 p-1.5 rounded-full"><Xmark width={14}/></button>
+            <h3 className="mb-4 font-bold text-white text-lg flex items-center gap-2"><Gift className="text-cyan-400"/> Activate Proxy Package</h3>
+            
+            {activateStep === 1 ? (
+              <div className="flex flex-col gap-4">
+                <p className="text-sm text-zinc-400">Select the underlying provider/plan and specify exactly how much bandwidth to allocate.</p>
+                {formError && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl">{formError}</div>}
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-zinc-300">Provider & Plan Template</label>
+                  <select
+                    value={selectedPlanId}
+                    onChange={(e) => setSelectedPlanId(e.target.value)}
+                    className="w-full rounded-xl bg-zinc-900 border border-white/10 p-3 text-white text-sm outline-none focus:border-cyan-500 transition-colors"
+                  >
+                    <option value="">Select a template...</option>
+                    {plans.filter(p => p.status === "ACTIVE").map(p => (
+                      <option key={p._id} value={p._id}>{p.providerId?.toUpperCase()} - {p.name} ({p.proxyType})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-zinc-300">Amount (GB)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={activateGb}
+                    onChange={(e) => setActivateGb(e.target.value ? parseInt(e.target.value) : "")}
+                    className="w-full rounded-xl bg-zinc-900 border border-white/10 p-3 text-white text-sm outline-none focus:border-cyan-500 transition-colors"
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end mt-4">
+                  <Button onPress={closeActivateModal} className="bg-white/5 text-white font-bold rounded-xl">Cancel</Button>
+                  <Button className="bg-cyan-500 text-black font-bold rounded-xl" onPress={handleActivateNext}>Next: Review</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {formError && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl">{formError}</div>}
+                <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-4 flex flex-col gap-2">
+                  <h4 className="text-cyan-400 font-bold text-sm mb-1">Reconfirmation</h4>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-400">User:</span>
+                    <span className="text-white font-bold font-mono">{publicUserId}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-400">Name:</span>
+                    <span className="text-white font-bold">{user?.name || "—"}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-400">Email:</span>
+                    <span className="text-white font-bold">{user?.email || "—"}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-400">Provider:</span>
+                    <span className="text-white font-bold uppercase">{selectedPlanDetails?.providerId}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-400">Type:</span>
+                    <span className="text-white font-bold">{selectedPlanDetails?.proxyType}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-400">Bandwidth:</span>
+                    <span className="text-white font-bold">{activateGb} GB</span>
+                  </div>
+                  <div className="flex justify-between text-xs mt-2 pt-2 border-t border-cyan-500/20">
+                    <span className="text-zinc-400">Cost to User:</span>
+                    <span className="text-emerald-400 font-bold">0 BDT (Manual Allocation)</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-zinc-500 text-center">
+                  This will instantly trigger upstream allocation and notify the user via their dashboard.
+                </p>
+
+                <div className="flex gap-2 justify-end mt-2">
+                  <Button onPress={() => setActivateStep(1)} className="bg-white/5 text-white font-bold rounded-xl">Back</Button>
+                  <Button className="bg-emerald-500 text-black font-bold rounded-xl" isDisabled={activating} onPress={handleActivatePackage}>
+                    {activating ? "Allocating..." : "Confirm & Allocate"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Affiliate Modal */}
+      {confirmAffiliate && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <GlassCard className="relative !bg-zinc-950 !border-white/10 w-full max-w-md p-6 rounded-2xl shadow-2xl">
+            <button onClick={() => setConfirmAffiliate(null)} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition-colors bg-zinc-900 hover:bg-zinc-800 p-1.5 rounded-full"><Xmark width={14}/></button>
+            <h3 className="text-xl font-bold text-white mb-4">
+              {confirmAffiliate === "GRANT" ? "Grant Affiliate Partner?" : "Revoke Affiliate Partner?"}
+            </h3>
+            
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4 flex flex-col gap-1 text-sm">
+              <div className="flex justify-between"><span className="text-amber-400">User ID:</span> <span className="text-white font-mono">{publicUserId}</span></div>
+              <div className="flex justify-between"><span className="text-amber-400">Name:</span> <span className="text-white">{user?.name || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-amber-400">Email:</span> <span className="text-white">{user?.email || "—"}</span></div>
+            </div>
+
+            <p className="text-sm text-zinc-400 mb-6">
+              {confirmAffiliate === "GRANT"
+                ? "This will give the user a special badge and allow them to generate referral links to earn commissions."
+                : "This will instantly remove their partner badge and stop their ability to earn from new referrals."}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button onPress={() => setConfirmAffiliate(null)} className="bg-white/5 text-white font-bold rounded-xl">Cancel</Button>
+              <Button 
+                onPress={() => {
+                  const action = confirmAffiliate;
+                  setConfirmAffiliate(null);
+                  run(() => setAffiliate(publicUserId, action === "GRANT"), action === "GRANT" ? "Partner granted." : "Partner revoked.");
+                }} 
+                className={confirmAffiliate === "GRANT" ? "bg-amber-500 text-black font-bold rounded-xl" : "bg-red-600 text-white font-bold rounded-xl"}
+                isDisabled={busy}
+              >
+                {confirmAffiliate === "GRANT" ? "Confirm Grant" : "Confirm Revoke"}
+              </Button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
     </AdminShell>
   );
 }

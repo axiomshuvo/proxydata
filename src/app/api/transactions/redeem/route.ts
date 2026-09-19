@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import clientPromise from "@/lib/db/mongodb";
-import { headers } from "next/headers";
+import { encrypt } from "@/lib/crypto";
+import { assertSameOrigin, requireActiveUser } from "@/lib/route-guard";
+import { hitRateLimit } from "@/lib/rate-limit";
 import {
   addSubUserBalance,
   createSubUser,
@@ -17,16 +18,31 @@ function newTransactionId(): string {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const csrf = assertSameOrigin(req);
+    if (csrf) return csrf;
+    const got = await requireActiveUser();
+    if ("response" in got) return got.response;
+    const session = got.session;
 
-    const body = await req.json();
-    const { code } = body;
+    const burst = hitRateLimit(`redeem:${session.user.publicUserId}`, 5, 60 * 60 * 1000);
+    if (!burst.allowed) {
+      return NextResponse.json(
+        { error: "Too many redemption attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(burst.retryAfterMs / 1000)) } },
+      );
+    }
 
-    if (!code) {
-      return NextResponse.json({ error: "Missing redemption code" }, { status: 400 });
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+    // NoSQL-injection guard: code must be a 16-char Crockford string —
+    // objects like {"$ne": null} must never reach the Mongo filter.
+    const code = String((body as { code?: unknown })?.code ?? "").trim().toUpperCase();
+    if (!/^[0-9A-HJKMNP-TV-Z]{16}$/.test(code)) {
+      return NextResponse.json({ error: "Invalid redemption code." }, { status: 400 });
     }
 
     const client = await clientPromise;
@@ -64,6 +80,14 @@ export async function POST(req: Request) {
       // 2. Upstream Allocation via DataImpulse Adapter
       // Determine how many GBs this code is worth (assume bytes -> GB conversion)
       const bandwidthGb = Math.floor(lockedCode.bandwidthBytes / GB);
+      if (bandwidthGb < 1) {
+        // Sub-GB legacy code: release the lock unconsumed instead of burning it for 0 GB.
+        await db.collection("redeem_codes").updateOne(
+          { _id: lockedCode._id, status: "PROCESSING" },
+          { $set: { status: "ACTIVE", redeemedBy: null, redeemedAt: null, updatedAt: new Date() } },
+        );
+        return NextResponse.json({ error: "This code carries less than 1 GB and cannot be redeemed." }, { status: 400 });
+      }
       
       // Look for an existing proxy account of this type for this user
       let proxyAccount = await db.collection("proxy_accounts").findOne({
@@ -93,7 +117,7 @@ export async function POST(req: Request) {
           poolTypeRaw: upstreamPoolType,
           login: newSubUser.login,
           // NOTE: encrypt with AES-256-GCM before ANY write (02 §43).
-          password: newSubUser.password,
+          password: encrypt(newSubUser.password),
           cumulativePurchasedBytes: 0,
           cachedRemainingBytes: 0,
           lastBalanceSyncAt: new Date(),
@@ -104,23 +128,47 @@ export async function POST(req: Request) {
       }
 
       // Add the balance upstream (DataImpulse) with op-log row first (02 §51).
+      // Idempotency key is code-bound: a retry after a lost response reconciles
+      // instead of double-charging.
       if (bandwidthGb > 0 && subUserId) {
-        const txId = newTransactionId();
-        await db.collection("provider_operation_logs").insertOne({
-          transactionId: txId,
-          operationType: "ADD_BALANCE",
-          provider: "dataimpulse",
-          payload: { subuser_id: subUserId, traffic: bandwidthGb },
-          status: "PENDING",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-        await addSubUserBalance(subUserId, bandwidthGb);
-        const post = await getSubUserBalance(subUserId).catch(() => null);
-        await db.collection("provider_operation_logs").updateOne(
-          { transactionId: txId, operationType: "ADD_BALANCE" },
-          { $set: { status: "SUCCESS", updatedAt: new Date() } },
-        );
+        const txId = `TX-REDEEM-${code}`;
+        let alreadyAllocated = false;
+        try {
+          await db.collection("provider_operation_logs").insertOne({
+            transactionId: txId,
+            operationType: "ADD_BALANCE",
+            provider: "dataimpulse",
+            payload: { subuser_id: subUserId, traffic: bandwidthGb },
+            status: "PENDING",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        } catch {
+          const done = await db.collection("provider_operation_logs").findOne({
+            transactionId: txId,
+            operationType: "ADD_BALANCE",
+            status: "SUCCESS",
+          });
+          if (done) {
+            // Previous attempt already charged upstream — skip the top-up,
+            // just finish the local bookkeeping below.
+            alreadyAllocated = true;
+            await db.collection("redeem_codes").updateOne(
+              { _id: lockedCode._id, status: "PROCESSING" },
+              { $set: { status: "PROVIDER_ALLOCATED", updatedAt: new Date() } },
+            );
+          } else {
+            throw new Error("Duplicate redeem attempt already in flight.");
+          }
+        }
+        if (!alreadyAllocated) {
+          await addSubUserBalance(subUserId, bandwidthGb);
+          const post = await getSubUserBalance(subUserId).catch(() => null);
+          await db.collection("provider_operation_logs").updateOne(
+            { transactionId: txId, operationType: "ADD_BALANCE" },
+            { $set: { status: "SUCCESS", updatedAt: new Date() } },
+          );
+        }
       }
 
       // 3. Finalize: PROCESSING → PROVIDER_ALLOCATED → USED + REDEEM ledger row.

@@ -6,14 +6,12 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "../ui/Sidebar";
 import { notifySuccess } from "../ui/ToastProvider";
 import type { ReactNode } from "react";
+import { ShieldCheck } from "@gravity-ui/icons";
+import Link from "next/link";
 
 interface CustomerShellProps {
   children: ReactNode;
   activePath: string;
-  userName?: string;
-  userEmail?: string;
-  avatarUrl?: string;
-  unreadCount?: number;
   showAffiliate?: boolean;
   onSignOut?: () => void;
 }
@@ -34,6 +32,7 @@ export function CustomerShell({
   // carrying CAPABILITY_AFFILIATE (granted by admin). Never advertised.
   const capabilities = ((session?.user as any)?.capabilities ?? []) as string[];
   const isAffiliate = showAffiliate || capabilities.includes("CAPABILITY_AFFILIATE");
+  const isSuspended = (session?.user as any)?.status === "SUSPENDED";
   
   const handleSignOut = async () => {
     await authClient.signOut();
@@ -43,7 +42,18 @@ export function CustomerShell({
   const initials = userName.split(" ").map(n => n[0]).join("").toUpperCase() || "US";
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
+      {isSuspended && (
+        <div className="w-full bg-red-600 text-white px-4 py-2 text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-2 z-[60] relative shadow-lg">
+          <div className="flex items-center gap-2">
+            <ShieldCheck width={16} />
+            <span>ACCOUNT SUSPENDED</span>
+          </div>
+          <span className="hidden sm:inline">—</span>
+          <span className="text-red-100 text-center font-normal">Your proxy access and purchasing abilities have been frozen.</span>
+          <Link href="/contact" className="underline hover:text-white ml-2 text-white font-bold">Contact Support</Link>
+        </div>
+      )}
       <Navbar
         isAuthed
         links={[]}
@@ -51,7 +61,6 @@ export function CustomerShell({
         userEmail={userEmail}
         publicId={publicId}
         avatarUrl={avatarUrl}
-        unreadCount={0}
         onSignOut={handleSignOut}
       />
       <div className="mx-auto flex max-w-7xl">

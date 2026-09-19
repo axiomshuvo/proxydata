@@ -145,8 +145,8 @@ export const CouponSchema = z.object({
   isOneTime: z.boolean().default(false), // claimed atomically at APPROVAL
 
   // Scoping Rules
-  targetPlanId: z.string().optional(),
-  targetUserId: z.string().optional(),
+  planId: z.string().optional(),
+  userId: z.string().optional(),
 
   // State ($inc-only usageCount, guarded by usageCount < usageLimit in-txn)
   usageCount: z.number().int().default(0),

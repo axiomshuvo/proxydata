@@ -16,11 +16,20 @@ const customCaching = [
 ];
 
 const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
+  precacheEntries: [...(self.__SW_MANIFEST ?? []), { url: "/offline", revision: "v1" }],
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: customCaching,
+});
+
+// Failed document navigations (offline) fall back to the precached page.
+serwist.setCatchHandler(async ({ request }) => {
+  if (request.destination === "document") {
+    const offline = await serwist.matchPrecache("/offline");
+    if (offline) return offline;
+  }
+  return Response.error();
 });
 
 serwist.addEventListeners();

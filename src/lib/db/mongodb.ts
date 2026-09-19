@@ -12,7 +12,7 @@ const options = {
   },
   maxPoolSize: 10,
   tls: true,
-  tlsAllowInvalidCertificates: true,
+  
 };
 
 let client: MongoClient;
