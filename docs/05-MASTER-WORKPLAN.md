@@ -275,6 +275,11 @@ _Goal: Handle messaging without hitting the 100/day SMTP limit._
 - [x] 138. Hook: Create DB notification on Purchase Initiated.
 - [x] 139. Hook: Create DB notification on Purchase Approved.
 - [x] 140. Hook: Create DB notification on Purchase Rejected.
+- [x] 140b. Hook: Admin Broadcast Engine (`createAdminNotification`).
+- [x] 140c. Hook: System Broadcasts on Contact form, Manual Order, Affiliate requests.
+- [x] 140d. Global Admin UI Badges: SWR implementation inside AdminShell for live sidebar badge counts.
+- [x] 140e. Notification Deep Linking: Routing via `targetUrl` parameter.
+- [x] 140f. Global Toast Migration: Transitioned to native HeroUI v3 Toasts.
 - [x] 141. Build API: `POST /api/auth/forgot-password`.
 - [x] 142. Rate Limit Check: Ensure user has not requested reset in last 24h.
 - [x] 143. API Logic: Generate secure reset token, save to DB with expiry.
@@ -304,7 +309,8 @@ _Goal: Wire up the React UI to the API routes._
 
 _Goal: Wire up the Admin control panel. All admin routes live under `ADMIN_PATH` (server env — strictly and ONLY `/axiomshuvo`; see `01` §8.2)._
 
-- [ ] 160. Build `ADMIN_PATH` dashboard overview (Fetch stats).
+- [x] 160. Build `ADMIN_PATH` dashboard overview (Fetch stats).
+- [x] 160b. Build `axiomshuvo/tickets` admin UI to read/manage contact form messages without relying on SMTP.
 - [ ] 161. Implement Storage Warning progress bar based on DB size API.
 - [ ] 162. Build `axiomshuvo/approvals` queue data table (cost preview, dup-TrxID blocking, retry — per `04` §4.2).
 - [ ] 163. Wire up "Approve" button with confirmation modal and loading state (enqueues worker — never synchronous allocation).
@@ -328,6 +334,8 @@ _Goal: Ensure system survives abuse._
 - [x] 176. Implement frontend throttling on Proxy Config saves (prevent API spam).
 - [x] 177. Handle DataImpulse 500 errors gracefully without exposing stack traces.
 - [x] 178. Handle Hostinger SMTP connection failures gracefully.
+- [x] 178b. Secure Route Guard (`proxy.ts`): Correct logic order to bounce logged-in users away from auth pages.
+- [x] 178c. Security: Externalize Avatar uploads to ImgBB to protect MongoDB 512MB limits.
 
 ## PHASE 15: Optimization & Cleanup
 

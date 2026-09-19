@@ -9,15 +9,11 @@ import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { notifySuccess } from "@/components/ui/ToastProvider";
 
-// Standard SWR fetcher
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function UserDashboard() {
-  // 1. Fetch Live User Session
   const { data: session, isPending } = authClient.useSession();
 
-  // Bind a pending referral once (OAuth round-trip stores it pre-redirect).
-  // Same trip also raises the one-time post-OAuth welcome toast.
   useEffect(() => {
     const ref = sessionStorage.getItem("pending_ref");
     if (!ref || !session?.user) return;
@@ -33,25 +29,20 @@ export default function UserDashboard() {
     sessionStorage.removeItem("oauth_welcome");
     const u = session.user as unknown as { name?: string; createdAt?: string };
     const firstName = (u.name || "there").split(" ")[0];
-    const fresh =
-      u.createdAt ? Date.now() - new Date(u.createdAt).getTime() < 2 * 60 * 1000 : false;
+    const fresh = u.createdAt ? Date.now() - new Date(u.createdAt).getTime() < 2 * 60 * 1000 : false;
     notifySuccess(fresh ? `Welcome to ProxyData, ${firstName}` : `Welcome back, ${firstName}`);
   }, [session?.user]);
   
-  // 2. Fetch Live Proxy Accounts — balances are display data: share one
-  // fetch/min/tab, no storm on window focus.
   const { data: proxyData, isLoading: proxiesLoading } = useSWR("/api/proxy/accounts", fetcher, {
     dedupingInterval: 60000,
     revalidateOnFocus: false,
   });
 
-  // 3. Fetch Live Transactions
   const { data: txData, isLoading: txLoading } = useSWR("/api/transactions", fetcher, {
     dedupingInterval: 30000,
     revalidateOnFocus: false,
   });
 
-  // Loading state
   if (isPending || proxiesLoading || txLoading) {
     return (
       <CustomerShell activePath="/user/dashboard">
@@ -66,130 +57,100 @@ export default function UserDashboard() {
   const accounts = proxyData?.accounts || [];
   const transactions = txData?.transactions || [];
 
-  // Calculate live stats — spec fields first, legacy rows fall back (02 §9).
-  const bytesOf = (acc: any) =>
-    acc.cachedRemainingBytes ?? acc.bandwidthBalanceBytes ?? 0;
-  const totalGb = accounts.reduce((acc: number, curr: any) => acc + bytesOf(curr), 0) / 1073741824;
-  const activeProxiesCount = accounts.length;
-  
-  // Get latest 5 transactions for the table
-  const recentTx = transactions.slice(0, 5);
-
   return (
     <CustomerShell activePath="/user/dashboard">
-      <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Welcome back, {user?.name || "User"}</h1>
-          <p className="text-sm text-zinc-400 mt-2">Here is a summary of your proxy usage and active plans.</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            Proxy Dashboard
+          </h1>
+          <p className="text-sm text-zinc-400 mt-1">
+            Manage your active plans and generate credentials.
+          </p>
         </div>
-        <div className="flex gap-3">
-          <Link href="/user/plans">
-            <Button className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl px-6">
-              Buy Bandwidth
-            </Button>
-          </Link>
+        <div className="w-full sm:w-72">
+          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
+            Active Plan / Provider
+          </label>
+          <select className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500 cursor-pointer">
+            {accounts.length > 0 ? accounts.map((acc: any) => {
+               const gbRemaining = (((acc.cachedRemainingBytes ?? acc.bandwidthBalanceBytes ?? 0)) / 1073741824).toFixed(2);
+               return <option key={acc._id}>{acc.proxyType?.toLowerCase() || "Datacenter"} (DataImpulse) - {gbRemaining} GB</option>;
+            }) : (
+               <option>No Active Plans</option>
+            )}
+          </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <GlassCard className="!bg-zinc-900/60 !border-white/10 p-6 rounded-3xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 blur-3xl rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
-          <div className="relative z-10">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Total Bandwidth Available</h3>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold text-white">{totalGb.toFixed(2)}</span>
-              <span className="text-sm font-bold text-cyan-400">GB</span>
+      {accounts.length === 0 ? (
+        <div className="text-center py-10 border border-dashed border-white/10 rounded-2xl bg-black/40">
+          <p className="text-zinc-500 text-sm font-semibold">You don't have any active proxies yet.</p>
+          <Link href="/user/plans" className="text-cyan-500 text-sm font-bold mt-2 inline-block hover:text-cyan-400">Purchase a plan &rarr;</Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          {/* Proxy Access Card */}
+          <div className="bg-zinc-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-6 relative overflow-hidden lg:col-span-1">
+            <div className="absolute top-0 right-0 bg-cyan-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-widest shadow-lg">
+              {accounts[0]?.proxyType?.toLowerCase() || "Datacenter"}
             </div>
-            <div className="mt-4 flex items-center justify-between text-xs font-semibold text-zinc-500">
-              <span>Across {activeProxiesCount} Active Pools</span>
-            </div>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="!bg-zinc-900/60 !border-white/10 p-6 rounded-3xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
-          <div className="relative z-10">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Total Spent</h3>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold text-white">
-                ৳{transactions.reduce((sum: number, tx: any) => sum + (tx.status === "ACTIVE" ? (tx.finalAmountBdt ?? tx.amountTaka ?? 0) : 0), 0)}
-              </span>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-xs font-semibold text-emerald-400">
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active Subscription</span>
-            </div>
-          </div>
-        </GlassCard>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <GlassCard className="!bg-zinc-900/60 !border-white/10 p-6 rounded-3xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">Active Proxies</h2>
-              <Link href="/user/proxy-config" className="text-xs font-bold text-cyan-400 hover:text-cyan-300">Open Generator &rarr;</Link>
-            </div>
-            
-            <div className="space-y-4">
-              {accounts.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-zinc-500 text-sm font-semibold">You don't have any active proxies yet.</p>
-                  <Link href="/user/plans" className="text-cyan-500 text-sm font-bold mt-2 inline-block">Purchase a plan</Link>
+            <h2 className="text-sm font-semibold text-white mb-4">Proxy Access</h2>
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                <label className="w-20 text-xs text-zinc-400">Login:</label>
+                <div className="flex items-center bg-black/50 border border-white/5 rounded-md overflow-hidden flex-1">
+                  <input type="text" value={accounts[0]?.login || ""} readOnly className="flex-1 bg-transparent border-none text-zinc-400 font-mono text-xs px-3 py-2 outline-none w-full" />
+                  <button className="px-3 py-2 text-cyan-500 bg-cyan-500/10 border-l border-white/5 font-semibold text-xs hover:bg-cyan-500/20 transition-colors" onClick={() => navigator.clipboard.writeText(accounts[0]?.login || "")}>COPY</button>
                 </div>
-              ) : (
-                accounts.map((acc: any) => (
-                  <div key={acc._id} className="flex items-center justify-between p-4 rounded-2xl bg-black/40 border border-white/5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white capitalize">{acc.proxyType?.toLowerCase() || "Residential"} Network</h4>
-                        <p className="text-xs font-semibold text-emerald-400">Active</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-extrabold text-white">{(((acc.cachedRemainingBytes ?? acc.bandwidthBalanceBytes ?? 0)) / 1073741824).toFixed(2)} GB</div>
-                      <div className="text-xs font-semibold text-zinc-500">Remaining</div>
-                    </div>
-                  </div>
-                ))
-              )}
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                <label className="w-20 text-xs text-zinc-400">Password:</label>
+                <div className="flex items-center bg-black/50 border border-white/5 rounded-md overflow-hidden flex-1">
+                  <input type="text" value="********" readOnly className="flex-1 bg-transparent border-none text-zinc-400 font-mono text-xs px-3 py-2 outline-none w-full" />
+                  <Link href="/user/proxy-config" className="px-3 py-2 text-cyan-500 bg-cyan-500/10 border-l border-white/5 font-semibold text-xs hover:bg-cyan-500/20 transition-colors flex items-center justify-center">REVEAL</Link>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                <label className="w-20 text-xs text-zinc-400">Host:</label>
+                <div className="flex items-center bg-black/50 border border-white/5 rounded-md overflow-hidden flex-1">
+                  <input type="text" value="gw.dataimpulse.com" readOnly className="flex-1 bg-transparent border-none text-zinc-400 font-mono text-xs px-3 py-2 outline-none w-full" />
+                  <button className="px-3 py-2 text-cyan-500 bg-cyan-500/10 border-l border-white/5 font-semibold text-xs hover:bg-cyan-500/20 transition-colors" onClick={() => navigator.clipboard.writeText("gw.dataimpulse.com")}>COPY</button>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                <label className="w-20 text-xs text-zinc-400">Port:</label>
+                <div className="flex items-center bg-black/50 border border-white/5 rounded-md overflow-hidden flex-1">
+                  <input type="text" value="823" readOnly className="flex-1 bg-transparent border-none text-zinc-400 font-mono text-xs px-3 py-2 outline-none w-full" />
+                  <button className="px-3 py-2 text-cyan-500 bg-cyan-500/10 border-l border-white/5 font-semibold text-xs hover:bg-cyan-500/20 transition-colors" onClick={() => navigator.clipboard.writeText("823")}>COPY</button>
+                </div>
+              </div>
             </div>
-          </GlassCard>
-        </div>
+          </div>
 
-        <div className="space-y-6">
-          <GlassCard className="!bg-zinc-900/60 !border-white/10 p-6 rounded-3xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">Recent Transactions</h2>
+          {/* Usage Card */}
+          <div className="bg-zinc-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-6 flex flex-col justify-between lg:col-span-1">
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-sm font-semibold text-white">Usage</h2>
+                <div className="flex bg-black/50 border border-white/5 rounded-md p-0.5">
+                  <button className="px-3 py-1 text-[10px] font-bold bg-zinc-700 text-white rounded shadow">GB</button>
+                  <button className="px-3 py-1 text-[10px] font-medium text-zinc-400 hover:text-white rounded">MB</button>
+                </div>
+              </div>
+              <div className="mt-6">
+                <div className="text-xs text-zinc-400 mb-1">Traffic left:</div>
+                <div className="text-4xl font-bold text-cyan-400">{(((accounts[0]?.cachedRemainingBytes ?? accounts[0]?.bandwidthBalanceBytes ?? 0)) / 1073741824).toFixed(2)} GB</div>
+              </div>
             </div>
-            <div className="space-y-4">
-              {recentTx.length === 0 ? (
-                <p className="text-xs text-zinc-500 text-center py-4">No transactions found.</p>
-              ) : (
-                recentTx.map((tx: any) => (
-                  <div key={tx._id} className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold text-white">{tx.planSnapshot?.name || tx.planNameSnapshot || "Purchase"}</h4>
-                      <p className="text-[10px] font-semibold text-zinc-500">{new Date(tx.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-white">৳{tx.finalAmountBdt ?? tx.amountTaka}</div>
-                      <div className={`text-[10px] font-bold ${
-                        tx.status === 'ACTIVE' ? 'text-emerald-400' :
-                        tx.status === 'PENDING' ? 'text-amber-400' : 'text-red-400'
-                      }`}>
-                        {tx.status}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </GlassCard>
+            <Link href="/user/plans" className="block w-full">
+              <button className="w-full mt-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-cyan-500/20">
+                Add GBs
+              </button>
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
     </CustomerShell>
   );
 }

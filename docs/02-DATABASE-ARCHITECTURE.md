@@ -443,9 +443,10 @@ Cached from `/reseller/common/locations` + `/reseller/common/pool_stats` (hourly
 
 ## 29. Notifications
 
-- `userId` (ObjectId)
-- `type` (enum: `PURCHASE_RECEIVED`, `PURCHASE_APPROVED`, `PROXY_ACTIVATED`, `PURCHASE_REJECTED`, `PURCHASE_CANCELLED`, `PURCHASE_EXPIRED`, `REDEEM_SUCCESS`, `ACCOUNT_SUSPENDED`, `ACCOUNT_RESTORED`, `AFFILIATE_REFERRAL`, `AFFILIATE_PAYOUT` — mirrors §01-22.1; Zod-enforced, no free strings)
+- `userId` (String; internal user._id, auto-resolved from publicUserId in backend hook)
+- `type` (enum: `PURCHASE_RECEIVED`, `PURCHASE_APPROVED`, `PROXY_ACTIVATED`, `PURCHASE_REJECTED`, `PURCHASE_CANCELLED`, `PURCHASE_EXPIRED`, `REDEEM_SUCCESS`, `ACCOUNT_SUSPENDED`, `ACCOUNT_RESTORED`, `AFFILIATE_REFERRAL`, `AFFILIATE_PAYOUT`, `SUPPORT_REPLY`, `NEW_SUPPORT_TICKET`, `NEW_ORDER_RECEIVED`, `PAYOUT_REQUESTED`, `LOW_INVENTORY_ALERT` — Zod-enforced, no free strings)
 - `title`, `message` (Strings — no secrets; proxy passwords/TrxID-full forbidden)
+- `targetUrl` (String, optional; deep-link for clickable routing)
 - `read` (Boolean)
 - `createdAt` (Date; 90-day TTL per §46)
 

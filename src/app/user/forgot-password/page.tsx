@@ -1,6 +1,7 @@
 "use client";
 
 import { GlassCard } from "@/components/ui/GlassCard";
+import { TextInput } from "@/components/ui/TextInput";
 import { Button, Spinner } from "@heroui/react";
 import Link from "next/link";
 import { useState } from "react";
@@ -52,14 +53,11 @@ export default function ForgotPasswordPage() {
 
           {sent ? (
             <p className="text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
-              If an account exists for {email}, a reset link is on its way (valid 24h, one request/day).
+              If an account exists for {email}, a reset link is on its way (valid 1 hour, one request per day).
             </p>
           ) : (
             <form className="space-y-5" onSubmit={handleSend}>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-2">Email Address</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="custom-input" placeholder="name@company.com" required />
-              </div>
+              <TextInput label="Email Address" name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" isRequired />
 
               <Button type="submit" isDisabled={sending} isPending={sending} className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow-lg transition-colors mt-2">
                 {({ isPending }) => (

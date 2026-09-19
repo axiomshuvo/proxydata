@@ -3,7 +3,7 @@
 import { auth } from "@/lib/auth";
 import clientPromise from "@/lib/db/mongodb";
 import { headers } from "next/headers";
-import { updateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { ObjectId, type Db } from "mongodb";
 import { randomBytes } from "crypto";
 import { ApprovalAbort, claimCouponTx, decideCommission } from "@/lib/approval";
@@ -42,6 +42,27 @@ async function requireAdmin() {
 }
 
 /**
+ * NoSQL-injection guard: Server Action args cross the network as tampered
+ * payloads (TS types don't survive). Every external ID must collapse to a
+ * plain non-empty string before entering a Mongo filter — objects like
+ * {"$ne": null} would otherwise act as query operators.
+ */
+function asId(value: unknown, label = "ID"): string {
+  const s = String(value ?? "").trim();
+  if (!s || s.startsWith("$") || s.includes("\0")) throw new Error(`${label} is not valid.`);
+  return s;
+}
+
+/** Same guard for ObjectId-typed params (throws cleanly instead of 500). */
+function asObjectId(value: unknown, label = "ID"): ObjectId {
+  const s = asId(value, label);
+  if (!ObjectId.isValid(s)) throw new Error(`${label} is not valid.`);
+  return new ObjectId(s);
+}
+
+const USER_STATUSES = ["ACTIVE", "SUSPENDED", "DEACTIVATED"] as const;
+
+/**
  * Get all users for the Admin Table
  */
 export async function getAllUsers() {
@@ -66,14 +87,15 @@ export async function getAllUsers() {
  */
 export async function getUserDetails(publicUserId: string) {
   await requireAdmin();
+  const safeId = asId(publicUserId, "publicUserId");
   const client = await clientPromise;
   const db = client.db();
 
   // 1. Get Base User Identity
-  const user = await db.collection("user").findOne({ publicUserId });
+  const user = await db.collection("user").findOne({ publicUserId: safeId });
   if (!user) throw new Error("User not found");
   const uid = user._id.toString();
-  const idKeys = [publicUserId, uid];
+  const idKeys = [safeId, uid];
 
   // 2. Get Proxy Inventory (All their proxy accounts)
   const proxyAccounts = await db.collection("proxy_accounts").find({ userId: { $in: idKeys } }).toArray();
@@ -83,6 +105,13 @@ export async function getUserDetails(publicUserId: string) {
     .find({ userId: { $in: idKeys } })
     .sort({ createdAt: -1 })
     .limit(200)
+    .toArray();
+
+  // 4. Get Notification History (Admin Audit)
+  const notifications = await db.collection("notifications")
+    .find({ userId: { $in: idKeys } })
+    .sort({ createdAt: -1 })
+    .limit(100)
     .toArray();
 
   // 4. Partner data (only meaningful for invited affiliates, harmless otherwise)
@@ -133,10 +162,14 @@ export async function getUserDetails(publicUserId: string) {
  */
 export async function updateUserStatus(publicUserId: string, newStatus: "ACTIVE" | "SUSPENDED" | "DEACTIVATED") {
   const admin = await requireAdmin();
+  const safeId = asId(publicUserId, "publicUserId");
+  if (!(USER_STATUSES as readonly string[]).includes(newStatus)) {
+    throw new Error("Invalid status.");
+  }
   const client = await clientPromise;
   const db = client.db();
 
-  const user = await db.collection("user").findOne({ publicUserId });
+  const user = await db.collection("user").findOne({ publicUserId: safeId });
   if (!user) throw new Error("User not found");
 
   const blocking = newStatus === "SUSPENDED" || newStatus === "DEACTIVATED";
@@ -145,14 +178,14 @@ export async function updateUserStatus(publicUserId: string, newStatus: "ACTIVE"
     // (1) Block ALL provider sub-users FIRST — never flip DB before confirm.
     const accounts = await db
       .collection("proxy_accounts")
-      .find({ userId: { $in: [user._id.toString(), publicUserId] } })
+      .find({ userId: { $in: [user._id.toString(), safeId] } })
       .toArray();
     for (const acc of accounts) {
       const subId = Number(acc.providerSubUserId ?? acc.providerSubId);
       if (!Number.isFinite(subId)) continue;
       await setSubUserStatus(subId, true);
       await db.collection("provider_operation_logs").insertOne({
-        transactionId: `admin:${publicUserId}`,
+        transactionId: `admin:${safeId}`,
         operationType: "SET_BLOCKED",
         provider: "dataimpulse",
         payload: { subuser_id: subId, blocked: true },
@@ -168,14 +201,14 @@ export async function updateUserStatus(publicUserId: string, newStatus: "ACTIVE"
 
   // (3) Flip status only after provider confirms (or immediately on restore).
   await db.collection("user").updateOne(
-    { publicUserId },
+    { publicUserId: safeId },
     { $set: { status: newStatus, updatedAt: new Date() } }
   );
 
   if (!blocking) {
     const accounts = await db
       .collection("proxy_accounts")
-      .find({ userId: { $in: [user._id.toString(), publicUserId] } })
+      .find({ userId: { $in: [user._id.toString(), safeId] } })
       .toArray();
     for (const acc of accounts) {
       const subId = Number(acc.providerSubUserId ?? acc.providerSubId);
@@ -190,10 +223,19 @@ export async function updateUserStatus(publicUserId: string, newStatus: "ACTIVE"
     actorRole: "ROLE_ADMIN",
     action: blocking ? "USER_SUSPENDED" : "USER_RESTORED",
     targetType: "USER",
-    targetId: publicUserId,
+    targetId: safeId,
     metadata: { newStatus },
     createdAt: new Date(),
   });
+  
+  // (5) Notify the user
+  const { createInAppNotification: notify } = await import("@/lib/notifications");
+  await notify(
+    safeId,
+    blocking ? "ACCOUNT_SUSPENDED" : "ACCOUNT_RESTORED",
+    blocking ? "Account Suspended" : "Account Restored",
+    blocking ? "Your account has been suspended by an administrator." : "Your account access has been restored."
+  );
 
   return { success: true, status: newStatus };
 }
@@ -252,12 +294,13 @@ export async function getPendingTransactions() {
 const GB_BYTES = 1073741824;
 export async function approveTransaction(transactionId: string) {
   const admin = await requireAdmin();
+  const txOid = asObjectId(transactionId, "transactionId");
   const client = await clientPromise;
   const db = client.db();
 
   // 1. PENDING → APPROVED (status-precondition; concurrent approvers: one wins).
   const approved = await db.collection("transactions").findOneAndUpdate(
-    { _id: new ObjectId(transactionId), status: "PENDING" },
+    { _id: txOid, status: "PENDING" },
     { $set: { status: "APPROVED", approvedAt: new Date(), updatedAt: new Date() } },
     { returnDocument: "after" },
   );
@@ -303,8 +346,13 @@ export async function approveTransaction(transactionId: string) {
       try {
         const plan = await db.collection("plans").findOne({ _id: new ObjectId(tx.planId) });
         if (!plan || plan.status !== "ACTIVE") throw new Error("Plan no longer ACTIVE.");
+        // Provider gate: orders placed before a pause must not allocate after
+        // it — back to PENDING until the provider returns (all modes).
+        const billing = await loadProviderBilling(db, plan.providerId ?? "dataimpulse");
+        if (billing.status !== "ACTIVE") {
+          await abortToPending("This plan's provider is paused — approval on hold until it returns.");
+        }
         if (plan.pricingMode === "TIERED") {
-          const billing = await loadProviderBilling(db, plan.providerId ?? "dataimpulse");
           const quote = quoteTiered(plan.tiers ?? [], plan.proxyType, bandwidthGb, {
             RESIDENTIAL: billing.baseBdt,
             MOBILE: billing.baseBdt,
@@ -639,14 +687,15 @@ export async function createPlan(input: PlanInput) {
     metadata: { name: doc.name, pricingMode: doc.pricingMode },
     createdAt: new Date(),
   });
-  updateTag("plans"); // catalog cache purges instantly on every plan write
+  revalidatePath("/plans"); // catalog cache purges instantly on every plan write
   return { success: true, id: res.insertedId.toString() };
 }
 
 export async function updatePlan(id: string, input: PlanInput) {
   await requireAdmin();
+  const planOid = asObjectId(id, "planId");
   const client = await clientPromise;
-  const existing = await client.db().collection("plans").findOne({ _id: new ObjectId(id) });
+  const existing = await client.db().collection("plans").findOne({ _id: planOid });
   if (!existing) throw new Error("Plan not found.");
   const providerId = input.providerId ?? existing.providerId ?? "dataimpulse";
   const billing = await loadProviderBilling(client.db(), providerId);
@@ -658,7 +707,7 @@ export async function updatePlan(id: string, input: PlanInput) {
   if (existing.status === "ARCHIVED" && (input.status ?? "ARCHIVED") !== "ARCHIVED")
     throw new Error("ARCHIVED plans stay archived (history refs) — create a new plan instead.");
   await client.db().collection("plans").updateOne(
-    { _id: new ObjectId(id) },
+    { _id: planOid },
     {
       $set: {
         ...doc,
@@ -678,7 +727,7 @@ export async function updatePlan(id: string, input: PlanInput) {
     metadata: { name: doc.name },
     createdAt: new Date(),
   });
-  updateTag("plans"); // catalog cache purges instantly on every plan write
+  revalidatePath("/plans"); // catalog cache purges instantly on every plan write
   return { success: true };
 }
 
@@ -782,7 +831,10 @@ export async function saveProvider(input: ProviderInput) {
     updatedAt: new Date(),
   });
   if (!parsed.success) throw new Error("Invalid provider: " + parsed.error.issues[0]?.message);
-  const { _id: _omit, ...doc } = parsed.data;
+  // Strip immutable fields: _id never writes through, and createdAt lives
+  // ONLY in $setOnInsert — leaving it in $set throws "Updating the path
+  // 'createdAt' would create a conflict at 'createdAt'" on every save.
+  const { _id: _omit, createdAt: _created, ...doc } = parsed.data;
   await client.db().collection("providers").updateOne(
     { providerId: id },
     { $set: { ...doc, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
@@ -797,7 +849,7 @@ export async function saveProvider(input: ProviderInput) {
     metadata: { name, status: input.status },
     createdAt: new Date(),
   });
-  updateTag("plans"); // provider status/cost/pools reshape the catalog
+  revalidatePath("/plans"); // provider status/cost/pools reshape the catalog
   return { success: true, providerId: id };
 }
 
@@ -824,10 +876,11 @@ export async function rejectTransaction(transactionId: string, reason: string) {
   const admin = await requireAdmin();
   const clean = String(reason ?? "").trim();
   if (clean.length < 3) throw new Error("A reject reason is required (min 3 characters).");
+  const txOid = asObjectId(transactionId, "transactionId");
   const client = await clientPromise;
   const db = client.db();
   const tx = await db.collection("transactions").findOneAndUpdate(
-    { _id: new ObjectId(transactionId), status: "PENDING" },
+    { _id: txOid, status: "PENDING" },
     { $set: { status: "REJECTED", rejectReason: clean, updatedAt: new Date() } },
     { returnDocument: "after" },
   );
@@ -856,9 +909,11 @@ export async function rejectTransaction(transactionId: string, reason: string) {
 
 export async function setAffiliate(publicUserId: string, grant: boolean) {
   const admin = await requireAdmin();
+  const safeId = asId(publicUserId, "publicUserId");
+  if (typeof grant !== "boolean") throw new Error("Grant flag must be a boolean.");
   const client = await clientPromise;
   const db = client.db();
-  const user = await db.collection("user").findOne({ publicUserId });
+  const user = await db.collection("user").findOne({ publicUserId: safeId });
   if (!user) throw new Error("User not found.");
   const caps = new Set<string>(Array.isArray(user.capabilities) ? user.capabilities : []);
   if (grant) {
@@ -873,7 +928,7 @@ export async function setAffiliate(publicUserId: string, grant: boolean) {
     // Profile row + codes + history are retained (attribution/audit spine).
   }
   await db.collection("user").updateOne(
-    { publicUserId },
+    { publicUserId: safeId },
     { $set: { capabilities: [...caps], updatedAt: new Date() } },
   );
   await db.collection("audit_logs").insertOne({
@@ -881,7 +936,7 @@ export async function setAffiliate(publicUserId: string, grant: boolean) {
     actorRole: "ROLE_ADMIN",
     action: grant ? "AFFILIATE_GRANTED" : "AFFILIATE_REVOKED",
     targetType: "USER",
-    targetId: publicUserId,
+    targetId: safeId,
     createdAt: new Date(),
   });
   return { success: true, affiliate: grant };
@@ -960,6 +1015,7 @@ export async function createCoupon(input: CouponInput) {
 
 export async function setCouponStatus(code: string, status: "ACTIVE" | "INACTIVE") {
   await requireAdmin();
+  if (status !== "ACTIVE" && status !== "INACTIVE") throw new Error("Invalid coupon status.");
   const client = await clientPromise;
   const res = await client.db().collection("coupons").updateOne(
     { code: String(code).toUpperCase() },
@@ -1044,23 +1100,27 @@ export async function getPayoutsAdmin() {
 
 export async function recordPayout(input: { affiliateUserId: string; amountBdt: number; reference: string; accountingPeriod?: string }) {
   const admin = await requireAdmin();
+  const affiliateUserId = asId(input.affiliateUserId, "affiliateUserId");
   const amount = Number(input.amountBdt);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error("Amount must be an integer > 0 BDT.");
   const reference = String(input.reference ?? "").trim();
   if (reference.length < 3) throw new Error("A payment reference is required (e.g. bKash TrxID).");
+  const periodRaw = String(input.accountingPeriod ?? "").trim();
+  const accountingPeriod = periodRaw || new Date().toISOString().slice(0, 7);
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(accountingPeriod)) throw new Error("Accounting period must be YYYY-MM.");
   const client = await clientPromise;
   const db = client.db();
   // Overpay guard: recompute unpaid inside this flow; payout must not exceed it.
   const [commissions, payouts] = await Promise.all([
-    db.collection("affiliate_commissions").find({ affiliateId: input.affiliateUserId }).toArray(),
-    db.collection("affiliate_payouts").find({ affiliateId: input.affiliateUserId }).toArray(),
+    db.collection("affiliate_commissions").find({ affiliateId: affiliateUserId }).toArray(),
+    db.collection("affiliate_payouts").find({ affiliateId: affiliateUserId }).toArray(),
   ]);
   const earned = commissions.reduce((s, c) => s + (Number(c.finalCommissionBdt) || 0), 0);
   const paid = payouts.reduce((s, x) => s + (Number(x.amountBdt) || 0), 0);
   if (amount > earned - paid) throw new Error(`Overpay blocked: unpaid balance is ৳${earned - paid}.`);
   await db.collection("affiliate_payouts").insertOne({
-    affiliateId: input.affiliateUserId,
-    accountingPeriod: input.accountingPeriod || new Date().toISOString().slice(0, 7),
+    affiliateId: affiliateUserId,
+    accountingPeriod,
     amountBdt: amount,
     reference,
     createdAt: new Date(),
@@ -1070,12 +1130,12 @@ export async function recordPayout(input: { affiliateUserId: string; amountBdt: 
     actorRole: "ROLE_ADMIN",
     action: "PAYOUT_EXECUTED",
     targetType: "USER",
-    targetId: input.affiliateUserId,
+    targetId: affiliateUserId,
     metadata: { amountBdt: amount },
     createdAt: new Date(),
   });
   const { createInAppNotification: notify } = await import("@/lib/notifications");
-  await notify(input.affiliateUserId, "AFFILIATE_PAYOUT", "Payout sent", `৳${amount} payout recorded (${reference}).`);
+  await notify(affiliateUserId, "AFFILIATE_PAYOUT", "Payout sent", `৳${amount} payout recorded (${reference}).`);
   return { success: true };
 }
 
@@ -1222,4 +1282,68 @@ export async function disableRedeemCode(code: string) {
   );
   if (res.matchedCount === 0) throw new Error("Code not found or already terminal (USED/EXPIRED/DISABLED).");
   return { success: true };
+}
+
+export async function getSupportTicketsAdmin() {
+  const admin = await requireAdmin();
+  const client = await clientPromise;
+  const db = client.db();
+
+  const tickets = await db.collection("support_tickets").find().sort({ createdAt: -1 }).toArray();
+  
+  return tickets.map((t) => ({
+    _id: t._id.toString(),
+    name: t.name,
+    email: t.email,
+    message: t.message,
+    status: t.status,
+    ip: t.ip,
+    createdAt: t.createdAt.toISOString(),
+  }));
+}
+
+export async function updateSupportTicketStatus(id: string, status: "OPEN" | "RESOLVED") {
+  const admin = await requireAdmin();
+  const client = await clientPromise;
+  const db = client.db();
+
+  await db.collection("support_tickets").updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status, updatedAt: new Date() } }
+  );
+  return { success: true };
+}
+
+export async function replySupportTicket(ticketId: string, replyMessage: string) {
+  await requireAdmin();
+  const cleanReply = String(replyMessage ?? "").trim();
+  if (cleanReply.length < 5) throw new Error("Reply must be at least 5 characters.");
+  
+  const client = await clientPromise;
+  const db = client.db();
+  
+  const oid = asObjectId(ticketId, "ticketId");
+  const ticket = await db.collection("support_tickets").findOneAndUpdate(
+    { _id: oid },
+    { $set: { status: "RESOLVED", adminReply: cleanReply, repliedAt: new Date() } },
+    { returnDocument: "after" }
+  );
+  
+  if (!ticket) throw new Error("Ticket not found.");
+  
+  // Try to find if user has an account with this email
+  const user = await db.collection("user").findOne({ email: ticket.email.toLowerCase() });
+  
+  if (user) {
+    // Send in-app notification
+    const { createInAppNotification: notify } = await import("@/lib/notifications");
+    await notify(
+      user._id.toString(), 
+      "SUPPORT_REPLY" as any, 
+      "Support Ticket Reply", 
+      `Admin replied: ${cleanReply.length > 50 ? cleanReply.slice(0, 50) + '...' : cleanReply}`
+    );
+  }
+  
+  return { success: true, deliveredToApp: !!user };
 }

@@ -6,6 +6,7 @@ import { Button, Spinner } from "@heroui/react";
 import Link from "next/link";
 import { useState } from "react";
 import { siteContent } from "@/lib/content";
+import { CircleExclamation, Persons, Ticket } from "@gravity-ui/icons";
 import { notifyError, notifySuccess } from "@/components/ui/ToastProvider";
 
 export default function RedeemPage() {
@@ -54,10 +55,7 @@ export default function RedeemPage() {
 
             <div className="flex items-center gap-5 mb-8 relative z-10">
               <div className="w-14 h-14 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-300 shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/>
-                  <path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>
-                </svg>
+                <Ticket width={28} />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Apply Promo Code</h2>
@@ -101,7 +99,7 @@ export default function RedeemPage() {
             <div className="mt-8 pt-6 border-t border-white/5 relative z-10">
               <div className="flex items-start gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
                 <span className="text-yellow-500 mt-0.5">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <CircleExclamation width={16} />
                 </span>
                 <p className="text-xs text-yellow-500/90 leading-relaxed">
                   Coupons are strictly one-time use per account. Fraudulent redemption will result in immediate account suspension.
@@ -120,7 +118,7 @@ export default function RedeemPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent"></div>
             <div className="relative z-10">
               <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-300"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <Persons width={20} className="text-zinc-300" />
               </div>
               <h3 className="text-base font-bold text-white mb-2">Need a Promo Code?</h3>
               <p className="text-xs text-zinc-400 mb-6 leading-relaxed">

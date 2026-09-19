@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { Label, ListBox, Select } from "@heroui/react";
 import type { ReactNode } from "react";
 

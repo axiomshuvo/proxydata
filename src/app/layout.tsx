@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ProxyData — Mobile-First Proxy Bandwidth",
-  description: "Buy proxy bandwidth by the GB. Instant activation, honest pricing, mobile-first.",
+  title: "ProxyData — Premium Proxy Infrastructure",
+  description: "Buy premium residential and datacenter proxies by the GB. Instant activation, local payments, and honest pricing.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -26,6 +26,19 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon-192x192.png",
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "ProxyData — Premium Proxy Infrastructure",
+    description: "Buy premium residential and datacenter proxies by the GB. Instant activation and zero minimum deposits.",
+    siteName: "ProxyData",
+    images: [{ url: "/icon-512x512.png" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ProxyData",
+    description: "Instant access to premium proxy networks.",
+    images: ["/icon-512x512.png"],
   },
 };
 

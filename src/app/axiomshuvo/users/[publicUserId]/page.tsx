@@ -2,6 +2,7 @@
 import { AdminShell } from "@/components/layout/AdminShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@heroui/react";
+import { StarFill } from "@gravity-ui/icons";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -81,7 +82,7 @@ export default function AdminUserDetailPage() {
                 <p className="text-xs font-mono text-cyan-400 mt-1">{user.publicUserId}</p>
                 <div className="flex gap-2 mt-3">
                   <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase bg-white/5 text-zinc-300">{user.role}</span>
-                  {isAffiliate && <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase bg-amber-500/20 text-amber-400">Affiliate</span>}
+                  {isAffiliate && <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 flex items-center gap-1 shadow-amber-glow-lg"><StarFill width={12} className="text-amber-400" /> Authorized Affiliate</span>}
                   <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase border ${user.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}`}>
                     {user.status}
                   </span>

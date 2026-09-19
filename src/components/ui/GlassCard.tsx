@@ -2,6 +2,7 @@
 
 import { Card, type CardProps } from "@heroui/react";
 import { ReactNode } from "react";
+import { twMerge } from "tailwind-merge";
 
 interface GlassCardProps extends CardProps {
   title?: ReactNode;
@@ -16,7 +17,10 @@ export function GlassCard({
 }: GlassCardProps) {
   return (
     <Card
-      className={`bg-zinc-900/60 backdrop-blur-[12px] border border-white/10 shadow-xl ${className || ""}`}
+      className={twMerge(
+        "bg-zinc-900/60 backdrop-blur-[12px] border border-white/10 shadow-xl rounded-3xl",
+        className,
+      )}
       {...props}
     >
       {title && (

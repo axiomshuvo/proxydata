@@ -4,8 +4,9 @@ import { CustomerShell } from "@/components/layout/CustomerShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@heroui/react";
 import useSWR from "swr";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { notifyError, notifySuccess } from "@/components/ui/ToastProvider";
+import { Check } from "@gravity-ui/icons";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -21,59 +22,68 @@ function quoteForQty(plan: any, qty: number): { rate: number; total: number } | 
 function FlexBuyer({ plan, onBuy, buying }: { plan: any; onBuy: (qty: number) => void; buying: boolean }) {
   const coeff = plan.poolCoefficient ?? COEFF[plan.proxyType] ?? 1;
   const stockGb = plan.stockKnown === false ? 1000 : Math.floor((plan.upstreamGbAvailable ?? 0) / coeff);
-  const max = Math.max(1, Math.min(1000, stockGb || 1000));
+  const max = Math.max(1, Math.min(100, stockGb || 100));
   const [qty, setQty] = useState(1);
-  const safeQty = Math.min(Math.max(1, qty), max);
+  const safeQty = Math.max(1, qty);
   const quote = quoteForQty(plan, safeQty);
+  
   return (
-    <div className="space-y-4 mb-6 flex-1">
-      <div className="rounded-2xl bg-black/40 border border-white/5 p-3">
-        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Volume rates</div>
-        {(plan.tiers ?? []).map((t: any, i: number) => (
-          <div key={i} className="flex justify-between text-xs py-1 border-b border-white/5 last:border-0">
-            <span className="text-zinc-400 font-semibold">{t.minGb}–{t.maxGb === null ? "∞" : t.maxGb} GB</span>
-            <span className="text-white font-bold">৳{t.pricePerGbBdt}/GB</span>
-          </div>
-        ))}
-      </div>
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-bold text-zinc-400">AMOUNT (GB)</label>
-          {quote && <span className="text-[11px] font-bold text-cyan-400">৳{quote.rate}/GB · Bulk rate</span>}
+    <div className="flex-1 flex flex-col justify-between mt-2">
+      
+      {/* Slider & Input Group */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Data Amount</label>
+          {quote && <span className="text-xs font-bold text-emerald-400">৳{quote.rate} / GB</span>}
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setQty(Math.max(1, safeQty - 1))}
-            className="w-10 h-10 rounded-xl bg-white/10 text-white font-bold text-lg hover:bg-white/20"
-          >
-            −
-          </button>
+        
+        <div className="mb-6 px-1">
           <input
-            type="number"
+            type="range"
             min="1"
             max={max}
+            step="1"
             value={safeQty}
-            onChange={(e) => setQty(Number(e.target.value) || 1)}
-            className="custom-input text-center font-bold"
+            onChange={(e) => setQty(Number(e.target.value))}
+            className="w-full h-2 bg-zinc-800 rounded-full appearance-none cursor-pointer outline-none transition-all hover:bg-zinc-700
+              [&::-webkit-slider-thumb]:appearance-none
+              [&::-webkit-slider-thumb]:w-6
+              [&::-webkit-slider-thumb]:h-6
+              [&::-webkit-slider-thumb]:bg-cyan-400
+              [&::-webkit-slider-thumb]:rounded-full
+              [&::-webkit-slider-thumb]:shadow-glow-dot"
           />
-          <button
-            onClick={() => setQty(Math.min(max, safeQty + 1))}
-            className="w-10 h-10 rounded-xl bg-white/10 text-white font-bold text-lg hover:bg-white/20"
-          >
-            +
-          </button>
+        </div>
+
+        <div className="flex items-center bg-zinc-950 rounded-xl border border-white/5 overflow-hidden">
+          <button onClick={() => setQty(Math.max(1, safeQty - 1))} className="w-14 h-12 flex items-center justify-center bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white transition-colors text-2xl font-light">−</button>
+          <div className="flex-1 flex items-center justify-center border-x border-white/5 h-12 bg-black/20">
+            <input type="number" min="1" value={safeQty} onChange={(e) => setQty(Number(e.target.value) || 1)} className="w-full bg-transparent text-center text-xl font-bold text-white focus:outline-none" />
+            <span className="text-sm font-bold text-zinc-500 mr-4">GB</span>
+          </div>
+          <button onClick={() => setQty(safeQty + 1)} className="w-14 h-12 flex items-center justify-center bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white transition-colors text-2xl font-light">+</button>
         </div>
       </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-extrabold text-white">৳{(quote?.total ?? 0).toLocaleString()}</span>
-        <span className="text-sm font-semibold text-zinc-500">/ {safeQty} GB</span>
+      
+      {/* Soft Volume Discounts Line */}
+      <div className="mb-6">
+        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Volume Discounts</p>
+        <div className="flex flex-wrap gap-2">
+          {(plan.tiers ?? []).map((t: any, i: number) => (
+            <span key={i} className="text-xs font-semibold text-zinc-400 bg-white/5 px-2.5 py-1 rounded-md border border-white/5">
+              {t.minGb}{t.maxGb === null ? "+" : `-${t.maxGb}`}GB @ <span className="text-cyan-400">৳{t.pricePerGbBdt}</span>
+            </span>
+          ))}
+        </div>
       </div>
-      <Button
-        onPress={() => quote && onBuy(safeQty)}
-        isDisabled={plan.outOfStock || buying || !quote}
-        className="w-full bg-white text-black font-bold hover:bg-zinc-200 rounded-xl"
+
+      {/* Massive Full-Width Purchase Button */}
+      <Button 
+        onPress={() => quote && onBuy(safeQty)} 
+        isDisabled={plan.outOfStock || buying || !quote} 
+        className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold h-14 rounded-xl text-lg shadow-glow-lg transition-all flex items-center justify-center gap-2"
       >
-        {buying ? "Processing..." : quote ? `Buy ${safeQty} GB` : "Quantity unavailable"}
+        {buying ? "Processing..." : quote ? `Pay ৳${(quote.total ?? 0).toLocaleString()}` : "Unavailable"}
       </Button>
     </div>
   );
@@ -81,14 +91,44 @@ function FlexBuyer({ plan, onBuy, buying }: { plan: any; onBuy: (qty: number) =>
 
 export default function PlansPage() {
   // Same catalog policy as public /plans: 1 fetch/min/tab, no focus refetch.
-  const { data, isLoading } = useSWR("/api/plans", fetcher, {
+  const [localCache] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("catalog_cache");
+      if (stored) return JSON.parse(stored);
+    }
+    return null;
+  });
+
+  const customFetcher = async (url: string) => {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (typeof window !== "undefined") localStorage.setItem("catalog_cache", JSON.stringify(json));
+    return json;
+  };
+
+  const { data, isLoading: swrLoading } = useSWR("/api/plans", customFetcher, {
+    fallbackData: localCache,
     dedupingInterval: 60000,
     revalidateOnFocus: false,
   });
+
+  const isLoading = swrLoading && !data;
   const [buyingId, setBuyingId] = useState<string | null>(null);
   const [checkoutResult, setCheckoutResult] = useState<any>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string>("");
 
   const plans = data?.plans || [];
+  
+  const providers = Array.from(new Set(plans.map((p: any) => p.providerName || p.providerId || "Other"))) as string[];
+  
+  useEffect(() => {
+    if (providers.length > 0 && !selectedProvider) {
+      setSelectedProvider(providers[0]);
+    }
+  }, [providers, selectedProvider]);
+
+  const visiblePlans = plans.filter((p: any) => (p.providerName || p.providerId || "Other") === selectedProvider);
+
 
   const handleBuy = async (planId: string, quantityGb?: number) => {
     setBuyingId(planId);
@@ -123,20 +163,20 @@ export default function PlansPage() {
       </div>
 
       {checkoutResult && !checkoutResult.error && (
-        <GlassCard className="!bg-emerald-900/20 !border-emerald-500/30 p-6 rounded-3xl mb-8">
+        <div className="!bg-emerald-900/20 !border-emerald-500/30 p-6 rounded-3xl mb-8">
           <h3 className="text-emerald-400 font-bold mb-2">Order Initiated (PENDING)</h3>
           <p className="text-sm text-emerald-100/70 mb-4">
             Your transaction has been locked. Please send exactly <b>৳{checkoutResult.amount} BDT</b> via bKash.
           </p>
           <div className="text-xs text-zinc-400 font-mono">TxID: {checkoutResult.transactionId}</div>
-        </GlassCard>
+        </div>
       )}
 
       {checkoutResult?.error && (
-        <GlassCard className="!bg-red-900/20 !border-red-500/30 p-6 rounded-3xl mb-8">
+        <div className="!bg-red-900/20 !border-red-500/30 p-6 rounded-3xl mb-8">
           <h3 className="text-red-400 font-bold mb-2">Order failed</h3>
           <p className="text-sm text-red-100/70">{checkoutResult.error}</p>
-        </GlassCard>
+        </div>
       )}
 
       {isLoading ? (
@@ -144,9 +184,34 @@ export default function PlansPage() {
           <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plans.map((plan: any) => (
-            <GlassCard key={plan._id} className="!bg-zinc-900/60 !border-white/10 p-6 rounded-3xl relative overflow-hidden flex flex-col">
+        <div className="flex flex-col">
+          {/* Mobile-first horizontal provider scroll */}
+          {providers.length > 0 && (
+            <div className="flex gap-3 overflow-x-auto pb-6 mb-4 snap-x" style={{ scrollbarWidth: 'none' }}>
+              {providers.map((prov) => (
+                <button 
+                  key={prov} 
+                  onClick={() => setSelectedProvider(prov)}
+                  className={`snap-start px-6 py-3.5 rounded-2xl font-black tracking-wide whitespace-nowrap transition-all flex items-center justify-center min-w-[150px] ${
+                    selectedProvider === prov 
+                      ? "bg-zinc-900 border-2 border-cyan-500 text-cyan-400 shadow-glow-lg" 
+                      : "bg-zinc-900 border-2 border-white/5 text-zinc-500 hover:text-white hover:bg-zinc-800 hover:border-white/10"
+                  }`}
+                >
+                  {prov.toLowerCase() === "dataimpulse" ? (
+                    <img src="/providers/dataimpulse-light.webp" alt="DataImpulse" className={`h-6 transition-all ${selectedProvider !== prov ? "opacity-40 grayscale" : "drop-shadow-soft"}`} />
+                  ) : (
+                    prov
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {visiblePlans.map((plan: any) => (
+            <div key={plan._id} className="bg-zinc-900 border border-white/5 hover:border-cyan-500/30 p-5 sm:p-6 rounded-2xl relative overflow-hidden flex flex-col transition-all shadow-2xl group">
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               {plan.outOfStock && (
                 <div className="absolute top-4 right-4 bg-red-500/20 text-red-400 text-[10px] font-bold px-2 py-1 rounded-full uppercase">
                   Out of Stock
@@ -172,11 +237,11 @@ export default function PlansPage() {
 
                   <ul className="space-y-3 mb-8 flex-1">
                     <li className="flex items-center gap-3 text-sm text-zinc-300">
-                      <svg className="w-4 h-4 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      <Check width={16} className="text-cyan-500" />
                       Access to {plan.providerId === 'dataimpulse' ? 'DataImpulse' : 'NetNut'} pool
                     </li>
                     <li className="flex items-center gap-3 text-sm text-zinc-300">
-                      <svg className="w-4 h-4 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      <Check width={16} className="text-cyan-500" />
                       HTTP(S) & SOCKS5 Support
                     </li>
                   </ul>
@@ -190,14 +255,15 @@ export default function PlansPage() {
                   </Button>
                 </>
               )}
-            </GlassCard>
+            </div>
           ))}
           
-          {plans.length === 0 && (
+          {visiblePlans.length === 0 && (
             <div className="col-span-3 text-center py-12">
               <p className="text-zinc-500">No active plans available at the moment.</p>
             </div>
           )}
+        </div>
         </div>
       )}
     </CustomerShell>

@@ -20,24 +20,25 @@ export default async function proxy(request: NextRequest) {
   const isCustomerRoute = pathname.startsWith("/user/") && !isAuthRoute;
   const isAdminRoute = ADMIN_PATH !== "" && (pathname === ADMIN_PATH || pathname.startsWith(`${ADMIN_PATH}/`));
 
-  // If public route, allow immediately
+  // Fast check: Ensure a Better Auth session cookie exists.
+  const hasCookie = request.cookies.getAll().some((c) => c.name.includes("better-auth.session_token"));
+
+  // If they are logged in and trying to access a login/signup page, bounce to dashboard
+  if (isAuthRoute && hasCookie) {
+    return NextResponse.redirect(new URL("/user/dashboard", request.url));
+  }
+
+  // If public route (landing page, etc., or auth routes when NOT logged in), allow immediately
   if (!isCustomerRoute && !isAdminRoute) {
     return NextResponse.next();
   }
 
-  // Fast check: Ensure a Better Auth session cookie exists.
-  // Authoritative checks (role === ROLE_ADMIN on every admin route/action,
-  // SUSPENDED 403 quarantine, DEACTIVATED login block, session revocation)
-  // live in Server Components/layouts + Server Actions via requireAdmin()
-  // (auth.api.getSession) — defense in depth. A self-fetch to
-  // /api/auth/get-session from proxy.ts is intentionally avoided: on
-  // localhost/edge it causes sporadic ECONNREFUSED/timeouts and would
-  // turn every navigation into an N+1 session lookup.
-  const hasCookie = request.cookies.getAll().some((c) => c.name.includes("better-auth.session_token"));
+  // If it's a protected route (dashboard or admin) and they have NO cookie, bounce to login
   if (!hasCookie) {
     return NextResponse.redirect(new URL("/user/sign-in", request.url));
   }
 
+  // Otherwise, they are authenticated and authorized to proceed to the Layout checks
   return NextResponse.next();
 }
 

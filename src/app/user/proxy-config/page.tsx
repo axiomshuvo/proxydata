@@ -3,8 +3,11 @@
 import { CustomerShell } from "@/components/layout/CustomerShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@heroui/react";
+import Link from "next/link";
+import useSWR from "swr";
 import { useState, useEffect } from "react";
 import { CopyBox } from "@/components/ui/CopyBox";
+import { ArrowDownToLine, Copy } from "@gravity-ui/icons";
 import { notifyError, notifySuccess } from "@/components/ui/ToastProvider";
 
 // Instant client preview of the targeting suffix (display parts ONLY —
@@ -41,6 +44,22 @@ function buildCurlCommand(params: any) {
 export default function ProxyConfigPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
+
+  const [localMeta] = useState(() => {
+    if (typeof window !== "undefined") {
+      const s = localStorage.getItem("proxydata_meta");
+      if (s) return JSON.parse(s);
+    }
+    return { locations: {}, stats: {} };
+  });
+  
+  const { data: metaData } = useSWR("/api/proxy/meta", async (url: string) => {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (typeof window !== "undefined") localStorage.setItem("proxydata_meta", JSON.stringify(json));
+    return json;
+  }, { fallbackData: localMeta, revalidateOnFocus: false });
+
   const [activeIdx, setActiveIdx] = useState(0);
   const [revealed, setRevealed] = useState<{ login: string; password: string } | null>(null);
   const [revealing, setRevealing] = useState(false);
@@ -57,7 +76,15 @@ export default function ProxyConfigPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
-  const active = accounts[activeIdx] ?? null;
+  const isDemo = accounts.length === 0;
+  const demoAccount = {
+    _id: "demo",
+    proxyType: "PREMIUM_RESIDENTIAL",
+    status: "ACTIVE",
+    login: "demo_user_buy_bandwidth_to_unlock"
+  };
+  const activeList = isDemo ? [demoAccount] : accounts;
+  const active = activeList[activeIdx] ?? null;
 
   useEffect(() => {
     fetch("/api/proxy/accounts")
@@ -109,6 +136,10 @@ export default function ProxyConfigPage() {
 
   const handleSave = async () => {
     if (!active) return;
+    if (active._id === "demo") {
+      notifyError("Demo Mode", "Purchase bandwidth to save configurations.");
+      return;
+    }
     setIsSaving(true);
     setSaveMsg(null);
     try {
@@ -132,6 +163,14 @@ export default function ProxyConfigPage() {
 
   const handleReveal = async () => {
     if (!active) return;
+    if (active._id === "demo") {
+      setRevealing(true);
+      setTimeout(() => {
+        setRevealed({ login: active.login, password: "******************" });
+        setRevealing(false);
+      }, 600);
+      return;
+    }
     setRevealing(true);
     try {
       const res = await fetch("/api/proxy/reveal", {
@@ -157,231 +196,262 @@ export default function ProxyConfigPage() {
     ? buildCurlCommand({ ...config, login, password: "x" } as any).match(/:\/\/(.+?):/)?.[1] || login
     : "";
 
+  const host = "gw.dataimpulse.com";
+  const port = config.mode === "STICKY" && (config as any).stickyPort ? String((config as any).stickyPort) : config.protocol === "SOCKS5" ? "824" : "823";
+  const finalUser = displayUsername || login;
+  const pass = revealed ? revealed.password : "********";
+
   return (
     <CustomerShell activePath="/user/proxy-config">
-      <div>
-        <h1>Proxy Generator</h1>
-        <p>Configure your targeting and generate connection strings.</p>
+      <div className="mb-6 flex items-center gap-4">
+        <Link
+          href="/user/dashboard"
+          className="p-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors text-zinc-300"
+        >
+          &larr; Back
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            Proxy Configuration
+          </h1>
+          <p className="text-sm text-zinc-400 mt-1">
+            Configure targeting and generate your proxy list.
+          </p>
+        </div>
       </div>
 
       {loadingAccounts ? (
         <div className="flex items-center justify-center py-16">
           <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
-      ) : accounts.length === 0 ? (
-        <GlassCard>
-          <p className="text-sm text-zinc-400">No proxy pools yet — buy bandwidth first, then configure it here.</p>
-        </GlassCard>
       ) : (
-      <div>
-        {/* Pool tabs — entitled pools only (backend still 403s the rest) */}
-        <div className="flex gap-2 mb-4 overflow-x-auto">
-          {accounts.map((a: any, i: number) => (
-            <button
-              key={a._id}
-              onClick={() => setActiveIdx(i)}
-              disabled={a.status !== "ACTIVE"}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${i === activeIdx ? "bg-cyan-500/20 text-cyan-300" : "bg-white/5 text-zinc-400"} disabled:opacity-40`}
-            >
-              {a.proxyType}{a.status !== "ACTIVE" ? " (locked)" : ""}
-            </button>
-          ))}
-        </div>
+      <div className="bg-zinc-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-6 sm:p-8 shadow-xl">
+        <form onSubmit={(e) => e.preventDefault()}>
+          {/* Targeting Toggle */}
+          <div className="flex items-center gap-6 mb-8 border-b border-white/10 pb-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="targeting_type" className="accent-cyan-500 w-4 h-4 mt-0.5" />
+              <span className="text-sm font-medium text-zinc-300">Default Targeting</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="targeting_type" className="accent-cyan-500 w-4 h-4 mt-0.5" defaultChecked />
+              <span className="text-sm font-medium text-cyan-400">Target Filters</span>
+            </label>
+            <div className="ml-auto flex gap-2">
+              <button className="p-1.5 bg-white/5 border border-white/10 rounded hover:bg-white/10 text-zinc-400" title="Sort A-Z">&darr; A</button>
+              <button className="p-1.5 bg-white/5 border border-white/10 rounded hover:bg-white/10 text-zinc-400" title="Sort 9-1">&darr; 9</button>
+            </div>
+          </div>
 
-        {/* Left Column: Configuration Controls */}
-        <div>
-          <GlassCard>
-            <h2>Connection Settings</h2>
-            
+          {/* Geo Targeting Fields */}
+          <div className="space-y-6 mb-8">
             <div>
-              {/* Protocol */}
-              <div>
-                <label>Protocol</label>
-                <div>
-                  <button 
-                    onClick={() => updateConfig("protocol", "HTTP")}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${config.protocol === "HTTP" ? "bg-cyan-500/20 text-cyan-400 shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}
-                  >
-                    HTTP(S)
-                  </button>
-                  <button 
-                    onClick={() => updateConfig("protocol", "SOCKS5")}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${config.protocol === "SOCKS5" ? "bg-cyan-500/20 text-cyan-400 shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}
-                  >
-                    SOCKS5
-                  </button>
-                </div>
-              </div>
-
-              {/* Session Mode */}
-              <div>
-                <label>Session Mode</label>
-                <div>
-                  <button 
-                    onClick={() => updateConfig("mode", "ROTATING")}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${config.mode === "ROTATING" ? "bg-purple-500/20 text-purple-400 shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}
-                  >
-                    Rotating IP
-                  </button>
-                  <button 
-                    onClick={() => updateConfig("mode", "STICKY")}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${config.mode === "STICKY" ? "bg-purple-500/20 text-purple-400 shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}
-                  >
-                    Sticky IP
-                  </button>
-                </div>
-              </div>
+              <label className="block text-xs font-semibold text-zinc-400 mb-1.5 flex justify-between">
+                Country
+                {metaData?.locations ? <span className="text-emerald-400 text-[10px]">Live Sync</span> : <span className="text-zinc-500 text-[10px]">Loading...</span>}
+              </label>
+              <select 
+                value={config.country} 
+                onChange={(e) => { updateConfig("country", e.target.value); updateConfig("state", ""); updateConfig("city", ""); }}
+                className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500"
+              >
+                <option value="">Select Country</option>
+                {metaData?.locations && Array.isArray(metaData.locations) && metaData.locations.length > 0 ? (
+                  metaData.locations.map((loc: any) => (
+                    <option key={loc.country_code} value={loc.country_code.toLowerCase()}>
+                      {loc.country_name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="us">United States</option>
+                    <option value="gb">United Kingdom</option>
+                    <option value="de">Germany</option>
+                    <option value="ca">Canada</option>
+                  </>
+                )}
+              </select>
             </div>
 
-            <h2>Geo-Targeting</h2>
-            
-            <div>
-              {/* Country */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label>Country Code</label>
-                <input 
-                  type="text" 
-                  value={config.country}
-                  onChange={(e) => updateConfig("country", e.target.value)}
-                  placeholder="e.g. us, de, gb" 
-                 
-                />
-              </div>
-
-              {/* State */}
-              <div>
-                <label>State (Optional)</label>
+                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Region</label>
                 <input 
                   type="text" 
                   value={config.state}
                   onChange={(e) => updateConfig("state", e.target.value)}
-                  disabled={!config.country}
-                  placeholder="e.g. ca, tx" 
-                 
+                  className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500" 
+                  placeholder="All regions" 
                 />
               </div>
-
-              {/* City */}
               <div>
-                <label>City (Optional)</label>
+                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">City</label>
                 <input 
                   type="text" 
                   value={config.city}
                   onChange={(e) => updateConfig("city", e.target.value)}
-                  disabled={!config.state}
-                  placeholder="e.g. los_angeles" 
-                 
+                  className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500" 
+                  placeholder="All cities" 
                 />
               </div>
             </div>
 
-            <div>
-              {/* ASN */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label>ISP / ASN (Optional)</label>
+                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">ISP</label>
+                <select className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500">
+                  <option>All ISPs</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">ZIP</label>
+                <select className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500">
+                  <option>All zipcodes</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">ASN</label>
                 <input 
                   type="text" 
                   value={config.asn}
                   onChange={(e) => updateConfig("asn", e.target.value)}
-                  placeholder="e.g. 7018" 
-                 
+                  className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500" 
+                  placeholder="All ASN's" 
                 />
               </div>
             </div>
+          </div>
 
+          {/* Advanced Options */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
-              <Button
-                onPress={handleSave}
-                isDisabled={isSaving || !active}
-
-              >
-                {isSaving ? "Saving..." : "Save Configuration"}
-              </Button>
-              {saveMsg && <p className="text-xs text-zinc-400 mt-2">{saveMsg}</p>}
+              <label className="block text-xs font-semibold text-zinc-400 mb-1.5 flex items-center gap-1">
+                Rotation interval <span className="w-3 h-3 rounded-full bg-zinc-700 text-[8px] flex items-center justify-center text-zinc-300">?</span>
+              </label>
+              <input type="text" className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500" placeholder="type value from 0 to 120" />
             </div>
-          </GlassCard>
-        </div>
-
-        {/* Right Column: Output Generator */}
-        <div>
-          <GlassCard>
             <div>
-              <div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>
-              </div>
-              <div>
-                <h3>Generated Proxy</h3>
-                <p>Ready to use</p>
+              <label className="block text-xs font-semibold text-zinc-400 mb-1.5 flex items-center gap-1">
+                Exclude ASN <span className="w-3 h-3 rounded-full bg-zinc-700 text-[8px] flex items-center justify-center text-zinc-300">?</span>
+              </label>
+              <input type="text" className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500" placeholder="AS Numbers" />
+            </div>
+          </div>
+
+          {/* Save/Clear Controls */}
+          <div className="flex justify-end gap-4 border-b border-white/10 pb-8 mb-8">
+            <button className="px-4 py-2 bg-transparent hover:bg-white/5 border border-white/10 text-zinc-300 text-sm font-medium rounded-lg transition-colors">
+              Clear configuration
+            </button>
+            <button 
+              onClick={handleSave} 
+              disabled={isSaving || !active}
+              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-cyan-500/20 transition-colors disabled:opacity-50"
+            >
+              {isSaving ? "Saving..." : "Save configuration"}
+            </button>
+            {saveMsg && <span className="text-xs text-zinc-400 mt-2">{saveMsg}</span>}
+          </div>
+
+          {/* Protocol and Hostname */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div>
+              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Hostname</label>
+              <select className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500">
+                <option>DNS hostname (gw.dataimpulse.com)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Type</label>
+              <div className="space-y-2 mt-2">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300">
+                  <input type="radio" name="proxy_mode" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.mode === "ROTATING"} onChange={() => updateConfig("mode", "ROTATING")} />
+                  Rotating
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-500">
+                  <input type="radio" name="proxy_mode" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.mode === "STICKY"} onChange={() => updateConfig("mode", "STICKY")} />
+                  Sticky
+                </label>
               </div>
             </div>
-
             <div>
-              <div>
-                <label>Gateway Host</label>
-                <CopyBox text="gw.dataimpulse.com" />
+              <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Protocol</label>
+              <div className="space-y-2 mt-2">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300">
+                  <input type="radio" name="proxy_protocol" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.protocol === "HTTP"} onChange={() => updateConfig("protocol", "HTTP")} />
+                  HTTP/HTTPS
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-500">
+                  <input type="radio" name="proxy_protocol" className="accent-cyan-500 w-4 h-4 mt-0.5" checked={config.protocol === "SOCKS5"} onChange={() => updateConfig("protocol", "SOCKS5")} />
+                  SOCKS5
+                </label>
               </div>
-              
-              <div>
-                <div>
-                  <label>Port</label>
-                  <CopyBox text={config.mode === "STICKY" && (config as any).stickyPort ? String((config as any).stickyPort) : config.protocol === "SOCKS5" ? "824" : "823"} />
-                </div>
-                <div>
-                  <label>Protocol</label>
-                  <CopyBox text={config.protocol.toLowerCase()} />
-                </div>
-              </div>
+            </div>
+          </div>
 
-              <div>
-                <label>Username</label>
-                <CopyBox
-                  text={displayUsername || login}
-
-                />
-              </div>
-
-              <div>
-                <label>Password (masked — reveal once to use)</label>
+          {/* Basic URL Example */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Basic URL example
+            </h3>
+            <div className="bg-black/60 border border-white/10 rounded-lg p-4 flex items-center justify-between">
+              <code className="text-xs text-zinc-400 font-mono overflow-x-auto whitespace-nowrap">
                 {revealed ? (
-                  <CopyBox text={revealed.password} isPassword />
+                  <>curl -x <span className="text-green-400">"{config.protocol.toLowerCase()}://{finalUser}:{revealed.password}@{host}:{port}"</span> https://api.ipify.org/</>
                 ) : (
-                  <Button
-                    onPress={handleReveal}
-                    isDisabled={revealing || !active}
-                    className="w-full bg-white/5 hover:bg-white/10 text-white font-bold text-xs"
-                  >
-                    {revealing ? "Revealing…" : "Reveal password"}
-                  </Button>
+                  <>Reveal password to generate cURL.</>
                 )}
-              </div>
-            </div>
-
-            <div>
-              <label>Quick Test (cURL)</label>
-              {revealed ? (
-              <div>
-                <textarea
-                  readOnly
-                  value={curlCommand}
-
-                />
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(curlCommand);
-                    notifySuccess("Copied to clipboard");
-                  }}
-
-                >
-                  COPY
-                </button>
-              </div>
-              ) : (
-                <p className="text-xs text-zinc-500">Reveal the password to generate the full connection string.</p>
+              </code>
+              {revealed && (
+              <button onClick={() => { navigator.clipboard.writeText(curlCommand); notifySuccess("Copied to clipboard"); }} className="ml-4 p-2 hover:bg-white/10 rounded text-zinc-500 hover:text-white transition-colors" title="Copy code" aria-label="Copy cURL command">
+                <Copy width={16} />
+              </button>
               )}
             </div>
+          </div>
 
-          </GlassCard>
-        </div>
+          {/* Output Generator */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-xs font-semibold text-zinc-400">Proxy List</label>
+                {!revealed && (
+                  <button type="button" onClick={handleReveal} disabled={revealing} className="text-[10px] bg-cyan-600/20 text-cyan-400 px-2 py-1 rounded font-bold uppercase hover:bg-cyan-600/30">
+                    {revealing ? "Revealing..." : "Reveal Password"}
+                  </button>
+                )}
+              </div>
+              <textarea 
+                className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500 font-mono text-xs h-32 leading-relaxed resize-none" 
+                readOnly 
+                value={revealed ? `${host}:${port}:${finalUser}:${revealed.password}` : "********"}
+              />
+              <div className="flex gap-4 mt-4">
+                <button onClick={() => { navigator.clipboard.writeText(`${host}:${port}:${finalUser}:${pass}`); notifySuccess("Copied"); }} className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg flex items-center gap-2 disabled:opacity-50" disabled={!revealed}>
+                  <Copy width={16} />
+                  Copy
+                </button>
+                <button className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg flex items-center gap-2 disabled:opacity-50" disabled={!revealed}>
+                  <ArrowDownToLine width={16} />
+                  Download
+                </button>
+              </div>
+            </div>
+            <div className="lg:col-span-1 space-y-6">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Quantity</label>
+                <input type="number" className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500" defaultValue="1" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Format</label>
+                <select className="bg-zinc-900/80 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-sm w-full outline-none focus:border-cyan-500">
+                  <option>hostname:port:login:password</option>
+                  <option>login:password@hostname:port</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </form>
       </div>
       )}
     </CustomerShell>

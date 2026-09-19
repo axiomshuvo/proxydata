@@ -852,10 +852,11 @@ Every event that affects an order, balance, or proxy allotment produces an audit
 
 ## 22. Notifications
 
-### 22.1 In-App Notification Engine
+### 22.1 In-App Notification Engine (User & Admin)
 
-Users receive real-time and persistent in-app notifications for critical milestones:
+The platform features a fully-fledged, real-time notification engine backing both user dashboards and admin control panels.
 
+**User Notifications (Personal Alerts):**
 1. **Purchase Request Received**: Confirms order submission and pending review.
 2. **Purchase Approved**: Confirms payment validation and begins allocation.
 3. **Proxy Activated**: Informs user that data is provisioned and ready for use.
@@ -864,6 +865,19 @@ Users receive real-time and persistent in-app notifications for critical milesto
 6. **Redeem Success**: Confirms code redemption and credited GB.
 7. **Account Status Changes**: Alerts user of suspension or reinstatement.
 8. **Affiliate Events**: Alerts affiliate of new qualified referrals or manual payouts.
+9. **Support Ticket Replies**: Alerts users when an admin replies to their contact message.
+
+**Admin Notifications (System Broadcasts):**
+Every user with the `ROLE_ADMIN` capability receives critical alerts globally:
+1. **New Support Ticket**: Broadcasts when a public contact form is submitted.
+2. **New Order Received**: Broadcasts when a user submits a manual payment (bKash/Nagad).
+3. **Payout Requested**: Broadcasts when an affiliate wants to withdraw funds.
+4. **Low Inventory**: Scheduled alerts when upstream proxy bandwidth runs low.
+
+**UX & Architecture (Recent Upgrades):**
+- **Deep Linking:** Notifications support a `targetUrl` parameter. Clicking a notification automatically routes the user/admin to the relevant page and marks the item as read.
+- **Global SWR Integration:** Both `Navbar.tsx` and `AdminShell.tsx` utilize `useSWR("/api/notifications")` and `/api/axiomshuvo/badges` for live, polling-based counts.
+- **Auto-Resolver:** Admin functions passing the public `PX-` string into the notification engine are safely and automatically resolved to the internal MongoDB UUID.
 
 ---
 
@@ -1003,3 +1017,11 @@ Due to infrastructure constraints (100 outbound emails/day max), the system reli
 
 *No other emails are sent by the system.*
 
+
+## 36. Support Tickets (Phase 13/14 Addition)
+**Requirement**: Contact form submissions are saved to MongoDB (`support_tickets`) to avoid Hostinger's 100/day SMTP quota. 
+**Admin UI**: A dedicated `/axiomshuvo/tickets` route exists in the Admin dashboard to view, manage, and mark tickets as resolved, with a quick-action button to reply via standard mail client (`mailto:`).
+
+## 37. Avatar Uploads (ImgBB)
+**Requirement**: To protect the MongoDB 512MB limit, binary files cannot be saved in the database.
+**Implementation**: User profile pictures are uploaded directly to the ImgBB API (`NEXT_PUBLIC_IMGBB_API_KEY`), and only the resulting display URL is stored in the `user` collection.

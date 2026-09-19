@@ -1,145 +1,175 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button, Card, Spinner } from "@heroui/react";
+import { Button, Spinner, Chip } from "@heroui/react";
 import useSWR from "swr";
+import { useState, useMemo } from "react";
 import { Navbar } from "@/components/ui/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { PlanExplorer } from "@/components/ui/PlanExplorer";
+import { Check, ShieldCheck } from "@gravity-ui/icons";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-const POOL_BLURBS: Record<string, string> = {
-  RESIDENTIAL: "Real household IPs. Best for everyday browsing, social and e-commerce.",
-  MOBILE: "Carrier-grade mobile IPs. Highest trust for strict targets.",
-  DATACENTER: "Blazing fast shared IPs. Best value for high-volume tasks.",
-  PREMIUM_RESIDENTIAL: "Top-tier residential pool with all targeting filters included.",
-};
-
 export default function PublicPlansPage() {
   const router = useRouter();
-  // Catalog barely moves (plans change ~1–2×/month; admin saves purge the
-  // server cache instantly): one fetch/min/tab, no refetch on window focus.
-  const { data, isLoading } = useSWR("/api/plans", fetcher, {
+
+  const [localCache] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("catalog_cache");
+      if (stored) return JSON.parse(stored);
+    }
+    return null;
+  });
+
+  const customFetcher = async (url: string) => {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (typeof window !== "undefined") localStorage.setItem("catalog_cache", JSON.stringify(json));
+    return json;
+  };
+
+  const { data, isLoading: swrLoading } = useSWR("/api/plans", customFetcher, {
+    fallbackData: localCache,
     dedupingInterval: 60000,
     revalidateOnFocus: false,
   });
-  const plans = (data?.plans || []).filter((p: any) => !p.outOfStock);
+
+  const isLoading = swrLoading && !data;
+  
+  const allPlans = (data?.plans || []).filter((p: any) => !p.outOfStock);
+  
+  // Group plans by provider
+  const plansByProvider = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    allPlans.forEach((plan: any) => {
+      const pid = plan.providerId || "unknown";
+      if (!groups[pid]) groups[pid] = [];
+      groups[pid].push(plan);
+    });
+    return groups;
+  }, [allPlans]);
+
+  const providers = Object.keys(plansByProvider);
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950 text-white">
       <Navbar />
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div className="hero-glow" />
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 text-center">
-            <p className="text-xs font-bold uppercase tracking-widest text-cyan-400">Proxy bandwidth, simplified</p>
-            <h1 className="mt-3 text-3xl sm:text-5xl font-extrabold tracking-tight">
-              Pay per GB. <span className="text-cyan-400">Nothing else.</span>
+        {/* CATALOG HEADER */}
+        <section className="border-b border-white/5 bg-zinc-950 pt-16 pb-12">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 text-center">
+            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-4">
+              Proxy <span className="text-cyan-400">Catalog</span>
             </h1>
-            <p className="mx-auto mt-4 max-w-xl text-sm sm:text-base text-zinc-400">
-              Pick a pool, grab any amount from 1 GB up. The more you take, the cheaper each GB gets. Prices in Taka — no subscriptions, no traps.
+            <p className="text-zinc-400 max-w-xl mx-auto">
+              Select your preferred provider below. We offer flexible Pay-as-You-Go bandwidth and Static IP bundles.
             </p>
-            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button className="w-full sm:w-auto" onPress={() => router.push("/user/sign-up")}>
-                Create account
-              </Button>
-              <Button className="w-full sm:w-auto" variant="secondary" onPress={() => router.push("/user/sign-in")}>
-                Sign in to buy
-              </Button>
-            </div>
           </div>
         </section>
 
-        {/* Pool cards */}
-        <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
+        {/* PRICING CATALOG (GROUPED BY PROVIDER) */}
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 relative min-h-[500px]">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Spinner size="sm" />
+            <div className="flex items-center justify-center py-20">
+              <Spinner color="current" size="lg" />
             </div>
-          ) : plans.length === 0 ? (
-            <Card className="p-10 text-center">
-              <Card.Header>
-                <Card.Description>Plans are restocking right now — check back in a bit.</Card.Description>
-              </Card.Header>
-              <Card.Footer className="justify-center">
-                <Button onPress={() => router.push("/user/sign-up")}>Notify me — create account</Button>
-              </Card.Footer>
-            </Card>
+          ) : providers.length === 0 ? (
+            <div className="text-center py-20 border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
+              <h3 className="text-xl font-bold text-white mb-2">No plans available</h3>
+              <p className="text-zinc-500 text-sm max-w-md mx-auto">We are currently restocking our entire network. Please check back later.</p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {plans.map((plan: any) => (
-                <Card key={plan._id} className="p-6 sm:p-8">
-                  <Card.Content className="flex flex-1 flex-col">
-                    {plan.pricingMode === "TIERED" && (plan.tiers ?? []).length > 0 ? (
-                      <PlanExplorer
-                        plan={plan}
-                        mode="explore"
-                        ctaLabel="Get started"
-                        onCta={() => router.push("/user/sign-up")}
-                      />
-                    ) : (
-                      <>
-                        <span className="text-[10px] font-bold text-cyan-500 uppercase tracking-wider">
-                          {plan.providerName ?? plan.providerId} · {plan.proxyType}
-                        </span>
-                        <h3 className="text-xl font-bold text-white mt-1">{plan.name}</h3>
-                        <div className="mt-4 flex items-baseline gap-2">
-                          <span className="text-3xl font-extrabold">৳{plan.retailPriceBdt}</span>
-                          <span className="text-sm font-semibold text-zinc-500">/ {plan.bandwidthGb} GB</span>
+            <div className="space-y-24">
+              {providers.map((providerId) => (
+                <div key={providerId} className="flex flex-col">
+                  {/* Premium Provider Header - Centered */}
+                  <div className="flex flex-col items-center justify-center gap-4 mb-10 pb-8 border-b border-white/10 relative text-center">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-full bg-cyan-500/5 blur-[50px] pointer-events-none" />
+                    
+                    <div className="flex flex-col items-center gap-4 relative z-10">
+                      {providerId.toLowerCase() === "dataimpulse" ? (
+                        <div className="flex items-center gap-3">
+                          <img src="/providers/dataimpulse-light.webp" alt="DataImpulse" className="h-10 sm:h-14 drop-shadow-soft" />
+                          <span className="text-2xl sm:text-4xl font-light text-zinc-600 tracking-widest uppercase hidden sm:block">| Network</span>
+                        </div>
+                      ) : (
+                        <h2 className="text-4xl font-black text-white uppercase tracking-wider">{providerId} <span className="text-zinc-500 font-light">Network</span></h2>
+                      )}
+
+                      <div className="relative z-10 flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 px-4 py-2 rounded-full shadow-amber-glow-lg">
+                        <ShieldCheck width={16} className="text-amber-400 drop-shadow-amber-dot" />
+                        <span className="text-[10px] sm:text-xs font-bold text-amber-400 tracking-widest uppercase mt-0.5">Authorized Reseller</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Provider's Plans Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {plansByProvider[providerId].map((plan: any) => (
+                      <div key={plan._id} className="relative group rounded-3xl bg-zinc-900/40 border border-white/5 p-6 sm:p-8 overflow-hidden backdrop-blur-xl hover:border-cyan-500/30 transition-colors">
+                        
+                        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 via-transparent to-purple-500/0 group-hover:from-cyan-500/5 group-hover:to-purple-500/5 transition-all pointer-events-none" />
+
+                        <div className="flex justify-between items-start mb-6">
+                          <div>
+                            <Chip size="sm" variant="soft" className="mb-3 bg-zinc-800 text-zinc-300 font-bold uppercase tracking-wider text-[10px]">
+                              {plan.proxyType} • {plan.pricingMode === "TIERED" ? "PAYG" : "STATIC"}
+                            </Chip>
+                            <h3 className="text-2xl font-bold text-white">{plan.name}</h3>
+                          </div>
                         </div>
 
-                        <ul className="mt-4 space-y-2 text-sm text-zinc-300">
-                          <li>✓ HTTP(S) & SOCKS5 support</li>
-                          <li>✓ Country targeting included</li>
-                          <li>✓ Sticky & rotating sessions</li>
-                        </ul>
-                        <div className="flex-1" />
-                        <Button fullWidth className="mt-5" onPress={() => router.push("/user/sign-up")}>
-                          Get started
-                        </Button>
-                      </>
-                    )}
-                  </Card.Content>
-                </Card>
+                        {plan.pricingMode === "TIERED" ? (
+                          <div className="mt-4">
+                            <PlanExplorer
+                              plan={plan}
+                              mode="explore"
+                              ctaLabel="Get started"
+                              onCta={() => router.push("/user/sign-up")}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex flex-col h-full">
+                            <div className="mt-2 flex items-end gap-2">
+                              <span className="text-4xl font-extrabold text-cyan-400">৳{plan.retailPriceBdt}</span>
+                              <span className="text-sm font-semibold text-zinc-500 mb-1">/ {plan.bandwidthGb} GB</span>
+                            </div>
+                            
+                            <div className="mt-8 space-y-4 flex-1">
+                              <div className="flex items-center gap-3 text-sm text-zinc-300 font-medium">
+                                <Check width={18} className="text-cyan-400 shrink-0" />
+                                <span>Instant Allocation to Dashboard</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-sm text-zinc-300 font-medium">
+                                <Check width={18} className="text-cyan-400 shrink-0" />
+                                <span>SOCKS5 / HTTP Support</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-sm text-zinc-300 font-medium">
+                                <Check width={18} className="text-cyan-400 shrink-0" />
+                                <span>Advanced Country & City Targeting</span>
+                              </div>
+                            </div>
+
+                            <Button 
+                              size="lg" 
+                              className="w-full mt-8 bg-white text-black font-bold hover:bg-zinc-200"
+                              onPress={() => router.push("/user/sign-up")}
+                            >
+                              Buy Now
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </section>
-
-        {/* How it works */}
-        <section className="border-t border-white/5 bg-white/[.02]">
-          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
-            {[
-              ["1. Create account", "30 seconds. Email or Google."],
-              ["2. Pay with bKash / Nagad", "Manual verify, approved fast."],
-              ["3. Get credentials", "Working proxy strings in minutes."],
-            ].map(([t, d]) => (
-              <div key={t}>
-                <h4 className="font-bold">{t}</h4>
-                <p className="text-sm text-zinc-400 mt-1">{d}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Gift code teaser */}
-        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-          <Card className="p-6 sm:p-8 text-center border-cyan-500/20">
-            <Card.Header className="items-center">
-              <Card.Title>Have a gift code?</Card.Title>
-              <Card.Description>Sign in and redeem it for free bandwidth — no payment needed.</Card.Description>
-            </Card.Header>
-            <Card.Footer className="justify-center">
-              <Button onPress={() => router.push("/user/sign-in")}>Sign in to redeem</Button>
-            </Card.Footer>
-          </Card>
-        </section>
       </main>
-
       <Footer />
     </div>
   );

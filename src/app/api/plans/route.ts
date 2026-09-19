@@ -37,7 +37,7 @@ const getCatalogBase = unstable_cache(
     return items;
   },
   ["catalog-base"],
-  { revalidate: 300, tags: ["plans"] },
+  { revalidate: 3600, tags: ["plans"] },
 );
 
 export async function GET() {

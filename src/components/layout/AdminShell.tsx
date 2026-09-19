@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Envelope,
   Bars,
   Bell,
   ChartPie,
@@ -21,6 +22,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { AdminSidebar } from "../ui/AdminSidebar";
+import useSWR from "swr";
 
 interface AdminShellProps {
   children: ReactNode;
@@ -43,7 +45,35 @@ export function AdminShell({
   const [moreOpen, setMoreOpen] = useState(false);
 
   const { data: session } = authClient.useSession();
+  const authed = !!session?.user;
   const router = useRouter();
+  
+  // Fetch global admin badges
+  const { data: badges } = useSWR(authed ? "/api/axiomshuvo/badges" : null, (url: string) => fetch(url).then(r => r.json()), { refreshInterval: 60000 });
+  const realPendingApprovals = badges?.pendingApprovals ?? pendingApprovals ?? 0;
+  const realOpenTickets = badges?.openTickets ?? 0;
+  
+  const { data: notifData, mutate: mutateNotifs } = useSWR(authed ? "/api/notifications" : null, (url: string) => fetch(url).then(r => r.json()), { refreshInterval: 60000 });
+  const realUnreadCount = notifData?.unreadCount ?? 0;
+  const notifications = notifData?.notifications ?? [];
+  
+  const handleMarkAllRead = async () => {
+    if (!authed) return;
+    await fetch("/api/notifications/read", { method: "POST" });
+    mutateNotifs({ ...notifData, unreadCount: 0, notifications: notifications.map((n: any) => ({ ...n, read: true })) });
+  };
+
+  const handleNotificationClick = async (n: any) => {
+    setNotifOpen(false);
+    if (!n.read) {
+      fetch("/api/notifications/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: n._id }) });
+      const updated = notifications.map((notif: any) => notif._id === n._id ? { ...notif, read: true } : notif);
+      mutateNotifs({ ...notifData, unreadCount: Math.max(0, realUnreadCount - 1), notifications: updated }, false);
+    }
+    if (n.targetUrl) {
+      router.push(n.targetUrl);
+    }
+  };
 
   const userName = session?.user?.name || "Admin";
   const userEmail = session?.user?.email || "";
@@ -86,7 +116,8 @@ export function AdminShell({
       badge: pendingApprovals,
     },
     { label: "Plans", href: `${basePath}/plans`, Icon: Layers, badge: 0 },
-    { label: "Providers", href: `${basePath}/providers`, Icon: Globe, badge: 0 },
+{ label: "Providers", href: `${basePath}/providers`, Icon: Globe, badge: 0 },
+    { label: "Tickets", href: `${basePath}/tickets`, Icon: Envelope, badge: 0 },
     { label: "Users", href: `${basePath}/users`, Icon: Persons, badge: 0 },
     { label: "Codes", href: `${basePath}/codes`, Icon: Tag, badge: 0 },
     {
@@ -135,65 +166,40 @@ export function AdminShell({
                 className="relative p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-colors focus:outline-none"
               >
                 <Bell width={20} />
-                <span className="absolute top-1 right-1.5 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                </span>
+                {realUnreadCount > 0 && (
+                  <span className="absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-500 px-1 text-[10px] font-bold text-black border border-zinc-950">
+                    {realUnreadCount}
+                  </span>
+                )}
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
-                    <p className="text-sm font-bold text-white">
-                      System Alerts
-                    </p>
-                    <span className="text-[10px] font-bold bg-white/10 text-zinc-300 px-2 py-0.5 rounded">
-                      3 New
-                    </span>
+                <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl py-3 z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="px-4 pb-2 border-b border-white/5 flex justify-between items-center">
+                    <h3 className="font-bold text-white text-sm">Notifications</h3>
+                    {realUnreadCount > 0 && (
+                      <button onClick={handleMarkAllRead} className="text-[10px] text-cyan-400 hover:underline">Mark all as read</button>
+                    )}
                   </div>
-                  <div className="max-h-[300px] overflow-y-auto">
-                    <div className="px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer">
-                      <p className="text-xs font-bold text-amber-400 mb-0.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                        Low Stock Alert
-                      </p>
-                      <p className="text-[11px] text-zinc-300">
-                        NetNut inventory dropped below 200 GB. Est runtime is 12
-                        days.
-                      </p>
-                      <p className="text-[9px] text-zinc-500 mt-1 uppercase">
-                        10 minutes ago
-                      </p>
-                    </div>
-                    <div className="px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer">
-                      <p className="text-xs font-bold text-emerald-400 mb-0.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        New Affiliate Signup
-                      </p>
-                      <p className="text-[11px] text-zinc-300">
-                        User PX-99A1B2 generated their first affiliate referral.
-                      </p>
-                      <p className="text-[9px] text-zinc-500 mt-1 uppercase">
-                        1 hour ago
-                      </p>
-                    </div>
-                    <div className="px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer">
-                      <p className="text-xs font-bold text-cyan-400 mb-0.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
-                        Daily Backup Complete
-                      </p>
-                      <p className="text-[11px] text-zinc-300">
-                        MongoDB cluster snapshot saved successfully (14.2 MB).
-                      </p>
-                      <p className="text-[9px] text-zinc-500 mt-1 uppercase">
-                        5 hours ago
-                      </p>
-                    </div>
-                  </div>
-                  <div className="border-t border-white/5 p-2 text-center">
-                    <button className="text-xs text-zinc-400 hover:text-white font-semibold transition-colors">
-                      Mark all as read
-                    </button>
+                  <div className="flex flex-col max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-zinc-500 text-xs">No notifications yet.</div>
+                    ) : (
+                      notifications.map((n: any) => (
+                        <div 
+                          key={n._id} 
+                          onClick={() => handleNotificationClick(n)}
+                          className={`px-4 py-3 border-b border-white/5 hover:bg-white/5 cursor-pointer flex gap-3 transition-colors ${n.read ? 'opacity-60' : ''}`}
+                        >
+                          {!n.read && <div className="w-2 h-2 rounded-full bg-cyan-400 mt-1.5 flex-shrink-0 shadow-glow-dot"></div>}
+                          <div className={n.read ? 'ml-5' : ''}>
+                            <p className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">{n.title}</p>
+                            <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">{n.message}</p>
+                            <p className="text-[10px] text-zinc-500 mt-1.5">{new Date(n.createdAt).toLocaleString()}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -304,7 +310,8 @@ export function AdminShell({
         <AdminSidebar
           basePath={basePath}
           activePath={activePath}
-          pendingApprovals={pendingApprovals}
+          pendingApprovals={realPendingApprovals}
+          openTickets={realOpenTickets}
         />
         <main className="min-w-0 flex-1 px-4 pt-6 pb-28 sm:px-6 lg:pb-10">
           <h1 className="mb-6 text-2xl font-bold tracking-tight">{title}</h1>

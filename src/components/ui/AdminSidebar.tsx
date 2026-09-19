@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartPie, Gear, Globe, Layers, ListCheck, Persons, Tag, Wallet, Terminal } from "@gravity-ui/icons";
+import { ChartPie, Gear, Globe, Layers, ListCheck, Persons, Tag, Wallet, Terminal, Envelope } from "@gravity-ui/icons";
 import Link from "next/link";
 
 /*
@@ -13,9 +13,10 @@ interface AdminSidebarProps {
   basePath: string;
   activePath?: string;
   pendingApprovals?: number;
+  openTickets?: number;
 }
 
-export function AdminSidebar({ basePath, activePath, pendingApprovals = 0 }: AdminSidebarProps) {
+export function AdminSidebar({ basePath, activePath, pendingApprovals = 0, openTickets = 0 }: AdminSidebarProps) {
   const items = [
     { label: "Overview", href: basePath, Icon: ChartPie, badge: 0 },
     { label: "Approvals", href: `${basePath}/approvals`, Icon: ListCheck, badge: pendingApprovals },
@@ -24,6 +25,7 @@ export function AdminSidebar({ basePath, activePath, pendingApprovals = 0 }: Adm
     { label: "Users", href: `${basePath}/users`, Icon: Persons, badge: 0 },
     { label: "Codes", href: `${basePath}/codes`, Icon: Tag, badge: 0 },
     { label: "Affiliates", href: `${basePath}/affiliates`, Icon: Persons, badge: 0 },
+    { label: "Tickets", href: `${basePath}/tickets`, Icon: Envelope, badge: openTickets },
     { label: "Payouts", href: `${basePath}/payouts`, Icon: Wallet, badge: 0 },
     { label: "System Logs", href: `${basePath}/logs`, Icon: Terminal, badge: 0 },
     { label: "Settings", href: `${basePath}/settings`, Icon: Gear, badge: 0 },

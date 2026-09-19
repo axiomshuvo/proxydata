@@ -29,6 +29,24 @@
   /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /*
+    Locked glow/elevation scale (Obsidian/Cyan). Use these utilities instead
+    of arbitrary shadow-[...] values so every glow matches:
+    shadow-glow-sm | shadow-glow | shadow-glow-lg | shadow-glow-dot |
+    shadow-glow-lift | shadow-amber-glow | shadow-amber-glow-lg |
+    shadow-soft-lg | drop-shadow-soft | drop-shadow-amber-dot
+  */
+  --shadow-glow-sm: 0 0 8px rgba(6, 182, 212, 0.25);
+  --shadow-glow: 0 0 15px rgba(6, 182, 212, 0.15);
+  --shadow-glow-lg: 0 0 20px rgba(6, 182, 212, 0.3);
+  --shadow-glow-dot: 0 0 8px rgba(34, 211, 238, 0.8);
+  --shadow-glow-lift: 0 20px 40px -15px rgba(6, 182, 212, 0.15);
+  --shadow-amber-glow: 0 0 8px rgba(245, 158, 11, 0.25);
+  --shadow-amber-glow-lg: 0 0 16px rgba(245, 158, 11, 0.15);
+  --shadow-soft-lg: 0 0 40px rgba(255, 255, 255, 0.2);
+  --drop-shadow-soft: 0 0 15px rgba(255, 255, 255, 0.15);
+  --drop-shadow-amber-dot: 0 0 5px rgba(245, 158, 11, 0.5);
 }
 
 body {
@@ -75,42 +93,8 @@ body {
 }
 
 .custom-input:focus, .custom-select:focus {
-  border-color: #06b6d4;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 1px rgba(6,182,212,0.5);
-}
-
-.copy-input {
-  display: flex;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.copy-input input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: #a1a1aa;
-  font-family: monospace;
-  font-size: 12px;
-  padding: 10px 12px;
-  outline: none;
-  width: 100%;
-}
-
-.copy-input button {
-  padding: 10px 14px;
-  color: #06b6d4;
-  background: rgba(6, 182, 212, 0.1);
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
-  font-weight: 600;
-  font-size: 12px;
-  transition: background 0.2s;
-}
-
-.copy-input button:hover {
-  background: rgba(6, 182, 212, 0.2);
 }
 
 /*
@@ -125,5 +109,17 @@ body {
   }
   button:disabled {
     cursor: not-allowed;
+  }
+
+  /* Motion-sensitive users: kill transitions/animations globally. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

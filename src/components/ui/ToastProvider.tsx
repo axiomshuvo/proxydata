@@ -1,32 +1,28 @@
 "use client";
 
-import { Toast, ToastQueue } from "@heroui/react";
+import { ToastProvider as HeroToastProvider, toast } from "@heroui/react";
 
 /*
   Phase 3 - Step 44: ToastProvider for system notifications.
-  Mount once near the root layout; fire via notify* helpers.
-  Uses ONE explicit shared queue (not the implicit global) so every
-  helper call provably lands in the mounted provider's region.
+  Using HeroUI v3's built-in global toast provider and toast method.
 */
 
-const toastQueue = new ToastQueue({ maxVisibleToasts: 3 });
-
 export function ToastProvider() {
-  return <Toast.Provider placement="bottom" queue={toastQueue} />;
+  return <HeroToastProvider placement="top"  />;
 }
 
 export function notify(title: string, description?: string) {
-  return toastQueue.add({ title, description, variant: "default" });
+  return toast(title, { description, variant: "default" });
 }
 
 export function notifySuccess(title: string, description?: string) {
-  return toastQueue.add({ title, description, variant: "success" });
+  return toast(title, { description, variant: "success" });
 }
 
 export function notifyWarning(title: string, description?: string) {
-  return toastQueue.add({ title, description, variant: "warning" });
+  return toast(title, { description, variant: "warning" });
 }
 
 export function notifyError(title: string, description?: string) {
-  return toastQueue.add({ title, description, variant: "danger" });
+  return toast(title, { description, variant: "danger" });
 }

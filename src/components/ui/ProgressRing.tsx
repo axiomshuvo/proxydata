@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { ProgressCircle } from "@heroui/react";
 
 /*

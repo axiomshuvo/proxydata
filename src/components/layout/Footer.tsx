@@ -1,38 +1,89 @@
 import Link from "next/link";
+import { ShieldCheck, Lock } from "@gravity-ui/icons";
 
-// Phase 3A - U1: public footer (pairs with Navbar in guest mode).
 export function Footer() {
   return (
-    <footer className="border-t border-white/5 bg-zinc-950">
-      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-4 py-10 sm:px-6 md:grid-cols-4">
-        <div className="col-span-2 md:col-span-2">
-          <p className="text-lg font-bold text-white">
-            Proxy<span className="text-cyan-400">Data</span>
+    <footer className="relative bg-zinc-950 overflow-hidden pt-16">
+      {/* Subtle Top Glow */}
+      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-cyan-500/10 blur-[100px] pointer-events-none" />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8 pb-12">
+          
+          {/* Brand Column (Spans 2 columns on large screens) */}
+          <div className="lg:col-span-2 space-y-6">
+            <Link href="/" className="inline-block">
+              <p className="text-2xl font-black text-white tracking-tight">
+                Proxy<span className="text-cyan-400">Data</span>
+              </p>
+            </Link>
+            <p className="text-sm text-zinc-400 max-w-sm leading-relaxed">
+              Premium proxy infrastructure for data extraction, social media management, and enterprise automation. Fast, ethical, and completely pay-as-you-go.
+            </p>
+          </div>
+
+          {/* Product Links */}
+          <div>
+            <h3 className="text-sm font-bold text-white mb-4">Infrastructure</h3>
+            <ul className="space-y-3">
+              <li><Link href="/plans" className="text-sm text-zinc-400 hover:text-cyan-400 transition-colors">Residential Proxies</Link></li>
+              <li><Link href="/plans" className="text-sm text-zinc-400 hover:text-cyan-400 transition-colors">Mobile Proxies</Link></li>
+              <li><Link href="/plans" className="text-sm text-zinc-400 hover:text-cyan-400 transition-colors">Datacenter Proxies</Link></li>
+              <li><Link href="/use-cases" className="text-sm text-zinc-400 hover:text-cyan-400 transition-colors">Use Cases</Link></li>
+            </ul>
+          </div>
+
+          {/* Company Links */}
+          <div>
+            <h3 className="text-sm font-bold text-white mb-4">Company</h3>
+            <ul className="space-y-3">
+              <li><Link href="/contact" className="text-sm text-zinc-400 hover:text-white transition-colors">Contact Support</Link></li>
+              <li><Link href="/terms" className="text-sm text-zinc-400 hover:text-white transition-colors">Terms of Service</Link></li>
+              <li><Link href="/privacy-policy" className="text-sm text-zinc-400 hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/user/sign-in" className="text-sm text-zinc-400 hover:text-white transition-colors">Client Portal</Link></li>
+            </ul>
+          </div>
+
+          {/* Trust & Payments */}
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-bold text-white mb-4">Secure Payments</h3>
+              <div className="flex flex-wrap gap-3 items-center">
+                <img src="/providers/bkash.webp" alt="bKash" className="h-7 object-contain opacity-80 hover:opacity-100 transition-opacity" />
+                <img src="/providers/nagad.webp" alt="Nagad" className="h-7 object-contain opacity-80 hover:opacity-100 transition-opacity" />
+              </div>
+            </div>
+            
+            <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-500/10 text-emerald-400 p-2 rounded-lg">
+                  <ShieldCheck width={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">100% Secure</p>
+                  <p className="text-[11px] text-zinc-500">AES-256 Encryption</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="border-t border-white/5 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-zinc-500 font-medium">
+            © {new Date().getFullYear()} ProxyData. All rights reserved.
           </p>
-          <p className="mt-2 max-w-xs text-sm text-zinc-500">
-            Mobile-first proxy bandwidth storefront. Instant activation, honest pricing.
-          </p>
+          <div className="flex items-center gap-6 text-xs text-zinc-500 font-medium">
+            <span className="flex items-center gap-1.5 hover:text-zinc-300 transition-colors"><Lock width={14} /> Anonymous Routing</span>
+            <span className="flex items-center gap-1.5 hover:text-zinc-300 transition-colors"><ShieldCheck width={14} /> Enterprise SLA</span>
+          </div>
         </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Product</p>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li><Link href="/plans" className="text-zinc-400 hover:text-white">Plans</Link></li>
-            <li><Link href="/contact" className="text-zinc-400 hover:text-white">Contact</Link></li>
-          </ul>
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Legal</p>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li><Link href="/terms" className="text-zinc-400 hover:text-white">Terms</Link></li>
-            <li><Link href="/privacy-policy" className="text-zinc-400 hover:text-white">Privacy Policy</Link></li>
-          </ul>
-        </div>
+
+        {/* Spacer so the fixed app-like bottom bar never covers footer content on small screens */}
+        <div className="h-[72px] lg:hidden" />
       </div>
-      <div className="border-t border-white/5 py-4 text-center text-xs text-zinc-600">
-        © 2026 ProxyData. All rights reserved.
-      </div>
-      {/* Spacer so the fixed app-like bottom bar never covers footer content on small screens */}
-      <div className="h-[72px] lg:hidden" />
     </footer>
   );
 }

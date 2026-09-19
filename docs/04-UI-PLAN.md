@@ -49,13 +49,14 @@ This document outlines the phased strategy for building the ProxyData user inter
   - Fixed Bottom Navigation Bar (Dashboard, Plans, Proxy, More). **More** drawer holds Transactions, Redeem, Affiliate (gated), Profile — no route is reachable only by URL typing.
 - **Desktop View**:
   - Left-aligned Sidebar Navigation containing ALL links (same set as mobile incl. Transactions/Redeem/Affiliate).
+  - Both User and Admin shells feature a `useSWR` powered real-time notification bell dropdown with deep-linking (`targetUrl`) and auto-read status.
   - Top header for breadcrumbs and user profile actions.
 
 ### 2.3 Admin Portal Layout
 
 - **Target Routes**: `/axiomshuvo/*` (Derived from server configuration) (Obscured admin path for security)
 - **Structure**: High-density desktop-optimized dashboard.
-- **Components**: Collapsible sidebar, metrics summary header, wide data tables.
+- **Components**: Collapsible sidebar (with globally live `useSWR` notification badges for pending approvals and open tickets), metrics summary header, wide data tables.
 
 ---
 

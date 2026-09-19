@@ -296,3 +296,27 @@ export async function setDefaultPoolParameters(
     body: JSON.stringify({ subuser_id: subUserId, default_pool_parameters: params }),
   });
 }
+
+/**
+ * Fetch available geo-targeting locations from DataImpulse.
+ */
+export async function getLocations() {
+  const token = await getAuthToken();
+  const res = await fetch(`https://api.dataimpulse.com/reseller/common/locations?pool_type=residential`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch locations: ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Fetch live network pool statistics from DataImpulse.
+ */
+export async function getPoolStats() {
+  const token = await getAuthToken();
+  const res = await fetch(`https://api.dataimpulse.com/reseller/common/pool_stats?pool_type=residential`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch pool stats: ${res.status}`);
+  return res.json();
+}

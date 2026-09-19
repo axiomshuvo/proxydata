@@ -1,3 +1,4 @@
+import { createInAppNotification } from "./notifications";
 import type { Db } from "mongodb";
 
 // Server-only approval helpers (01 §12.4/§15.3/§16.2). Kept outside the

@@ -11,6 +11,8 @@ const options = {
     deprecationErrors: true,
   },
   maxPoolSize: 10,
+  tls: true,
+  tlsAllowInvalidCertificates: true,
 };
 
 let client: MongoClient;

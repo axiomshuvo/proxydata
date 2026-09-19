@@ -1,3 +1,4 @@
+import { createAdminNotification } from "@/lib/notifications";
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/db/mongodb";
 import { headers } from "next/headers";
@@ -39,6 +40,15 @@ export async function POST(req: Request) {
       status: "OPEN",
       createdAt: new Date(),
     });
+
+    // Notify admins
+    await createAdminNotification(
+      "NEW_SUPPORT_TICKET",
+      "New Support Ticket",
+      `From: ${name} (${email}). Message: ${message.slice(0, 40)}...`,
+      "/axiomshuvo/tickets"
+    );
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("POST /api/contact Error:", error);

@@ -24,11 +24,39 @@ export const auth = betterAuth({
     ),
   ),
   database: mongodbAdapter(mongoClient.db()),
+  advanced: {
+    // Hostinger runs behind a reverse proxy: read the real client IP from
+    // forwarded headers so rate limiting is per-IP, not one shared bucket.
+    ipAddress: {
+      ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for", "x-real-ip"],
+    },
+  },
   emailAndPassword: {
     enabled: true,
-    sendResetPassword: async ({ user, url, token }, request) => {
-      // Phase 11: Send SMTP email for password reset
-      await sendEmail({
+    // Explicit 1-hour token life (Better Auth default is also 3600s — pinned
+    // here so an upstream default change can't silently extend the window).
+    resetPasswordTokenExpiresIn: 3600,
+    sendResetPassword: async ({ user, url }) => {
+      // Policy: 1 reset email per address per 24h (exact, DB-backed so it
+      // survives restarts and multi-process). This hook only runs for real
+      // accounts (unknown emails get an identical success with no send),
+      // so the throttle doubles as SMTP-quota protection.
+      const db = mongoClient.db();
+      const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
+      const recent = await db.collection("password_reset_requests").countDocuments({
+        email: user.email,
+        requestedAt: { $gte: dayAgo },
+      });
+      if (recent >= 1) {
+        console.warn(`Blocked password reset for ${user.email}: already requested within 24h`);
+        return;
+      }
+
+      // Phase 11: Send SMTP email for password reset. The throttle row is
+      // recorded ONLY on success — a failed send must stay retryable
+      // instead of locking the user out for 24h (failures land in
+      // runtime_logs via sendEmail for ops to see).
+      const sent = await sendEmail({
         to: user.email,
         subject: "ProxyData - Reset Your Password",
         html: `
@@ -37,6 +65,12 @@ export const auth = betterAuth({
           <a href="${url}">Reset Password</a>
         `
       });
+      if (sent.success) {
+        await db.collection("password_reset_requests").insertOne({
+          email: user.email,
+          requestedAt: new Date(),
+        });
+      }
     }
   },
   socialProviders: {

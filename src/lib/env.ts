@@ -41,6 +41,9 @@ const envSchema = z.object({
   DATAIMPULSE_API_PASSWORD: z
     .string()
     .min(1, "DATAIMPULSE_API_PASSWORD is required"),
+
+  // Image Uploads
+  IMGBB_API_KEY: z.string().min(1, "IMGBB_API_KEY is required for avatar uploads").optional(),
 });
 
 const _env = envSchema.safeParse(process.env);

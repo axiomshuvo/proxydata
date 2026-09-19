@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Label, Slider } from "@heroui/react";
+import { Button } from "@heroui/react";
 
 export const POOL_BLURBS: Record<string, string> = {
   RESIDENTIAL: "Real household IPs. Best for everyday browsing, social and e-commerce.",
@@ -34,80 +34,118 @@ interface PlanExplorerProps {
   onCta?: () => void;
 }
 
-/**
- * One interactive plan card shared by public /plans and /user/plans:
- * provider + pool header, tier table, smooth GB slider with live pricing.
- */
 export function PlanExplorer({ plan, mode, buying, onBuy, ctaLabel, onCta }: PlanExplorerProps) {
   const coeff = plan.poolCoefficient ?? FALLBACK_COEFF[plan.proxyType] ?? 1;
   const stockCap =
     plan.stockKnown === false ? 1000 : Math.max(1, Math.floor((plan.upstreamGbAvailable ?? 0) / coeff));
-  const sliderMax = Math.max(1, Math.min(stockCap, 1000));
-  const [qty, setQty] = useState(1);
-  const safeQty = Math.min(Math.max(1, qty), sliderMax);
+  
+  // Set reasonable max for slider, but input can go up to stockCap
+  const sliderMax = Math.min(100, stockCap); 
+  const [qtyRaw, setQtyRaw] = useState<string>("1");
+  
+  const parsedQty = parseInt(qtyRaw, 10);
+  const safeQty = isNaN(parsedQty) ? 1 : Math.min(Math.max(1, parsedQty), stockCap);
+  
   const quote = quoteForQty(plan, safeQty);
 
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQtyRaw(e.target.value);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQtyRaw(e.target.value);
+  };
+
+  const handleShortcut = (val: number) => {
+    setQtyRaw(val.toString());
+  };
+
   return (
-    <div className="flex flex-1 flex-col">
-      <span className="text-[10px] font-bold text-cyan-500 uppercase tracking-wider">
-        {plan.providerName ?? plan.providerId} · {plan.proxyType}
-      </span>
-      <h3 className="text-xl font-bold text-white mt-1">{plan.name}</h3>
-      <p className="text-sm text-zinc-400 mt-2">{POOL_BLURBS[plan.proxyType] ?? ""}</p>
+    <div className="flex flex-1 flex-col mt-2">
+      <p className="text-sm text-zinc-400 mb-6 font-medium">{POOL_BLURBS[plan.proxyType] ?? ""}</p>
 
-      <div className="mt-4 rounded-2xl bg-black/40 border border-white/5 p-3">
-        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Volume rates — tap a row</div>
-        {(plan.tiers ?? []).map((t: any, i: number) => {
-          const active = quote && safeQty >= t.minGb && (t.maxGb === null || safeQty <= t.maxGb);
-          return (
+      {/* Calculator Section */}
+      <div className="bg-black/30 border border-white/5 rounded-2xl p-5 mb-6">
+        
+        <div className="flex items-center justify-between mb-4">
+          <label className="text-xs font-bold text-zinc-400 tracking-wider">BANDWIDTH (GB)</label>
+          <div className="relative">
+            <input 
+              type="number" 
+              min={1} 
+              max={stockCap} 
+              value={qtyRaw}
+              onChange={handleInputChange}
+              className="w-20 bg-zinc-900 border border-white/10 text-white font-bold text-center rounded-lg py-1.5 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 pr-6"
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-500 pointer-events-none">GB</span>
+          </div>
+        </div>
+
+        {/* Custom Range Slider */}
+        <div className="mb-6">
+          <input 
+            type="range" 
+            min="1" 
+            max={sliderMax} 
+            value={safeQty} 
+            onChange={handleSliderChange}
+            className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+          />
+          <div className="flex justify-between text-[10px] font-bold text-zinc-600 mt-2">
+            <span>1 GB</span>
+            <span>{sliderMax} GB</span>
+          </div>
+        </div>
+
+        {/* Shortcuts */}
+        <div className="flex gap-2 mb-6">
+          {[1, 3, 5, 10].map(val => (
             <button
-              key={i}
+              key={val}
               type="button"
-              onClick={() => setQty(t.minGb)}
-              className={`flex w-full justify-between text-sm py-1.5 border-b border-white/5 last:border-0 rounded px-1 ${active ? "bg-cyan-500/10" : ""}`}
+              onClick={() => handleShortcut(val)}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                safeQty === val 
+                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-glow-sm' 
+                : 'bg-zinc-900 border-white/5 text-zinc-400 hover:bg-zinc-800 hover:text-white'
+              }`}
             >
-              <span className={`font-semibold ${active ? "text-cyan-300" : "text-zinc-400"}`}>
-                {t.minGb}–{t.maxGb === null ? "∞" : t.maxGb} GB
-              </span>
-              <span className={`font-bold ${active ? "text-cyan-300" : "text-white"}`}>
-                ৳{t.pricePerGbBdt}<span className="text-zinc-500 font-semibold">/GB</span>
-              </span>
+              {val} GB
             </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-5">
-        <div className="flex items-center justify-between mb-1">
-          <Label className="text-xs font-bold text-zinc-400">AMOUNT: {safeQty} GB</Label>
-          {quote && <span className="text-[11px] font-bold text-cyan-400">৳{quote.rate}/GB · Bulk rate</span>}
+          ))}
         </div>
-        <Slider
-          aria-label="Bandwidth amount in GB"
-          minValue={1}
-          maxValue={sliderMax}
-          step={1}
-          value={safeQty}
-          onChange={(v) => setQty(typeof v === "number" ? v : v[0] ?? 1)}
-        >
-          <Slider.Track>
-            <Slider.Fill />
-            <Slider.Thumb />
-          </Slider.Track>
-        </Slider>
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold text-white">৳{(quote?.total ?? 0).toLocaleString()}</span>
-          <span className="text-sm font-semibold text-zinc-500">/ {safeQty} GB</span>
+
+        {/* Pricing Display */}
+        <div className="pt-5 border-t border-white/5 flex flex-col items-center justify-center">
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Estimated Total</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-4xl font-black text-white">৳{(quote?.total ?? 0).toLocaleString()}</span>
+          </div>
+          {quote && (
+            <span className="text-xs font-semibold text-cyan-400 mt-1">
+              (৳{quote.rate} / GB calculated rate)
+            </span>
+          )}
         </div>
       </div>
 
-      <div className="mt-5 flex-1" />
+      <div className="mt-auto" />
       {mode === "buy" ? (
-        <Button fullWidth isDisabled={plan.outOfStock || buying || !quote} onPress={() => quote && onBuy?.(safeQty)}>
-          {buying ? "Processing..." : quote ? `Buy ${safeQty} GB` : plan.outOfStock ? "Restocking" : "Quantity unavailable"}
+        <Button 
+          size="lg"
+          className="w-full bg-cyan-600 text-white font-bold hover:bg-cyan-500 shadow-lg shadow-cyan-500/20"
+          isDisabled={plan.outOfStock || buying || !quote} 
+          onPress={() => quote && onBuy?.(safeQty)}
+        >
+          {buying ? "Processing..." : quote ? `Purchase ${safeQty} GB` : plan.outOfStock ? "Restocking" : "Quantity unavailable"}
         </Button>
       ) : (
-        <Button fullWidth onPress={onCta}>
+        <Button 
+          size="lg"
+          className="w-full bg-white text-black font-bold hover:bg-zinc-200 shadow-lg"
+          onPress={onCta}
+        >
           {ctaLabel ?? "Get started"}
         </Button>
       )}

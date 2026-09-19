@@ -263,6 +263,11 @@ export const NotificationType = z.enum([
   "ACCOUNT_RESTORED",
   "AFFILIATE_REFERRAL",
   "AFFILIATE_PAYOUT",
+  "SUPPORT_REPLY",
+  "NEW_SUPPORT_TICKET",
+  "NEW_ORDER_RECEIVED",
+  "PAYOUT_REQUESTED",
+  "LOW_INVENTORY_ALERT",
 ]);
 
 export const NotificationSchema = z.object({

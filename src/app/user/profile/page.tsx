@@ -6,8 +6,9 @@ import { CopyBox } from "@/components/ui/CopyBox";
 import { Button, Spinner } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { updateOwnName } from "@/app/actions/profile";
+import { updateOwnName, updateOwnAvatar } from "@/app/actions/profile";
 import { notifyError, notifySuccess } from "@/components/ui/ToastProvider";
+import { Lock, Person } from "@gravity-ui/icons";
 
 export default function ProfilePage() {
   const { data: session } = authClient.useSession();
@@ -19,7 +20,30 @@ export default function ProfilePage() {
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [savingPw, setSavingPw] = useState(false);
-  const [sendingLink, setSendingLink] = useState(false);
+const [sendingLink, setSendingLink] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      notifyError("File too large", "Please select an image under 5MB.");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      await updateOwnAvatar(formData);
+      notifySuccess("Avatar updated successfully!");
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+      notifyError("Upload failed", error instanceof Error ? error.message : "ImgBB upload failed.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     if (me?.name) setName(me.name);
@@ -98,15 +122,33 @@ export default function ProfilePage() {
         <div className="space-y-8">
           <GlassCard className="!bg-zinc-900/60 !border-white/10 p-6 sm:p-8 rounded-3xl">
             <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-400"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+              <Person width={20} className="text-cyan-400" />
               Personal Information
             </h2>
 
             <div className="flex items-center gap-6 mb-8 pb-8 border-b border-white/5">
-              <div className="w-20 h-20 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-2xl font-extrabold text-cyan-300">
-                {initials}
+              <label className="relative block w-20 h-20 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-2xl font-extrabold text-cyan-300 cursor-pointer overflow-hidden group hover:border-cyan-400/50 transition-colors">
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+                {me?.image ? (
+                  <img src={me.image} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  initials
+                )}
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <Spinner size="sm" color="current" />
+                  </div>
+                )}
+                {!uploadingAvatar && (
+                  <div className="absolute inset-x-0 bottom-0 bg-black/60 pt-1 pb-1 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[9px] font-bold text-white tracking-wider">EDIT</span>
+                  </div>
+                )}
+              </label>
+              <div className="flex flex-col gap-1 max-w-[220px]">
+                <p className="text-[11px] font-semibold text-zinc-300">Profile Picture</p>
+                <p className="text-[10px] text-zinc-500 leading-tight">JPG, PNG or GIF (Max 5MB). Hosted securely via ImgBB.</p>
               </div>
-              <p className="text-[11px] text-zinc-500 max-w-[220px]">Avatars are generated initials — uploads are disabled (no file storage in v1).</p>
             </div>
 
             <div className="space-y-5">
@@ -143,7 +185,7 @@ export default function ProfilePage() {
         <div className="space-y-8">
           <GlassCard className="!bg-zinc-900/60 !border-white/10 p-6 sm:p-8 rounded-3xl">
             <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+              <Lock width={20} className="text-amber-400" />
               Security Settings
             </h2>
 

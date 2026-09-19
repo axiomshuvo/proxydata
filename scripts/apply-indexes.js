@@ -79,6 +79,16 @@ async function applyIndexes() {
       { paymentReference: 1 },
       { unique: true, sparse: true }
     );
+    // Zombie-data guard: auto-delete abandoned unpaid orders after 48h.
+    // Partial filter keeps APPROVED/REJECTED history forever; only PENDING
+    // rows expire. Requires admin approval SLA comfortably under 48h.
+    await db.collection("transactions").createIndex(
+      { createdAt: 1 },
+      {
+        expireAfterSeconds: 48 * 3600,
+        partialFilterExpression: { status: "PENDING" },
+      }
+    );
 
     // 5. COUPON USAGES + COUPONS (case-insensitive codes need collation at query time;
     // unique code index here, strength-2 collation applied in app queries per 02 §32).
@@ -136,6 +146,16 @@ async function applyIndexes() {
       { expireAfterSeconds: 30 * 24 * 3600 }
     );
     await db.collection("runtime_logs").createIndex({ source: 1, level: 1, createdAt: -1 });
+
+    // 11. PASSWORD RESET REQUESTS — 24h throttle log: auto-clean after 25h.
+    console.log("Applying indexes for 'password_reset_requests'...");
+    await db.collection("password_reset_requests").createIndex(
+      { email: 1, requestedAt: -1 }
+    );
+    await db.collection("password_reset_requests").createIndex(
+      { requestedAt: 1 },
+      { expireAfterSeconds: 25 * 3600 }
+    );
 
     console.log("🎉 ALL PHASE 5 MONGODB INDEXES APPLIED SUCCESSFULLY!");
 
